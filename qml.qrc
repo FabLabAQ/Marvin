@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>StepControl.qml</file>
+        <file>SequenceControl.qml</file>
+        <file>ServoControl.qml</file>
+        <file>SingleServoControl.qml</file>
+    </qresource>
+</RCC>
