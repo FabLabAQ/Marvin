@@ -24,10 +24,56 @@ import QtQuick.Layouts 1.1
 
 // The items to control the sequence execution (pause, stop, immediate, ...)
 Item {
-	Text {
-		anchors.fill: parent
+	id: mainItem
+	implicitHeight: mainLayout.implicitHeight + (2 * mainLayout.anchors.margins)
+	implicitWidth: mainLayout.implicitWidth + (2 * mainLayout.anchors.margins)
 
-		text: "SequenceControl"
+	ColumnLayout {
+		id: mainLayout
+		anchors.fill: parent
+		anchors.margins: 5
+
+		Button {
+			text: "Play sequence from start"
+
+			Layout.fillWidth: true
+		}
+
+		Button {
+			text: "Play sequence from current step"
+
+			Layout.fillWidth: true
+		}
+
+		Button {
+			text: "Pause"
+
+			Layout.fillWidth: true
+		}
+
+		Button {
+			text: "Stop"
+
+			Layout.fillWidth: true
+		}
+
+		CheckBox {
+			text: "Immediate mode"
+
+			Layout.fillWidth: true
+		}
+
+		Button {
+			text: "Connect/Disconnect"
+
+			Layout.fillWidth: true
+		}
+
+		Text {
+			text: "Status"
+
+			Layout.fillWidth: true
+		}
 	}
 }
 

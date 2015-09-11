@@ -18,24 +18,66 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include "sequencer.h"
+#ifndef SEQUENCEPOINT_H
+#define SEQUENCEPOINT_H
 
-// ONLY FOR TESTING, REMOVE!!!
-namespace {
-	const SequencePoint minPoint(QVector<double>() << -1.0 << 40.0 << -36.0, 3, 1);
-	const SequencePoint maxPoint(QVector<double>() << 4.0 << 230.0 << 75.0, 3000, 10000);
-}
+#include <QVector>
+#include <QJsonObject>
 
-Sequencer::Sequencer(QObject *parent)
-	: QObject(parent)
-	, m_sequence(std::make_unique<Sequence>(3, minPoint, maxPoint))
+/**
+ * \brief A single point in a sequence
+ *
+ * This structure models a single point in a sequence
+ */
+struct SequencePoint
 {
-	SequencePoint p;
+	/**
+	 * \brief Constructor
+	 */
+	SequencePoint() = default;
 
-	p.duration = 100;
-	p.timeToTarget = 300;
-	p.point = QVector<double>() << 2.5 << 53.0 << 19.7;
-	m_sequence->append();
-	m_sequence->setPoint(p);
-}
+	/**
+	 * \brief Constructor
+	 *
+	 * \param p the point
+	 * \param d the duration in milliseconds
+	 * \param t the time to reach this point in milliseconds
+	 */
+	SequencePoint(QVector<double> p, int d, int t);
+
+	/**
+	 * \brief Initializes this object from its JSON representation
+	 *
+	 * \param json the JSON object to read
+	 * \return false in case of error
+	 */
+	bool fromJson(const QJsonObject& json);
+
+	/**
+	 * \brief Returns the JSON representation of this object
+	 *
+	 * \return The JSON representation of this object
+	 */
+	QJsonObject toJson() const;
+
+	/**
+	 * \brief The point
+	 */
+	QVector<double> point;
+
+	/**
+	 * \brief For how long the step should last in milliseconds
+	 *
+	 * The point should not be changed for this amount of milliseconds
+	 */
+	int duration;
+
+	/**
+	 * \brief The time spent to reach this point from the previous position
+	 *        in milliseconds
+	 */
+	int timeToTarget;
+};
+
+#endif // SEQUENCEPOINT_H
 

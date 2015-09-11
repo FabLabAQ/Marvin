@@ -36,12 +36,31 @@ ApplicationWindow {
 		Menu {
 			title: qsTr("&File")
 			MenuItem {
-				text: qsTr("&Open")
+				text: qsTr("&New sequence")
+				onTriggered: messageDialog.show(qsTr("New action triggered"));
+			}
+			MenuItem {
+				text: qsTr("&Open sequence")
 				onTriggered: messageDialog.show(qsTr("Open action triggered"));
+			}
+			MenuItem {
+				text: qsTr("&Save sequence")
+				onTriggered: messageDialog.show(qsTr("Save action triggered"));
+			}
+			MenuItem {
+				text: qsTr("S&ave sequence as...")
+				onTriggered: messageDialog.show(qsTr("SaveAs action triggered"));
 			}
 			MenuItem {
 				text: qsTr("E&xit")
 				onTriggered: Qt.quit();
+			}
+		}
+		Menu {
+			title: qsTr("&Edit")
+			MenuItem {
+				text: qsTr("O&ptions")
+				onTriggered: messageDialog.show(qsTr("Option action triggered"));
 			}
 		}
 	}
@@ -52,18 +71,18 @@ ApplicationWindow {
 
 		SplitView {
 			orientation: Qt.Vertical
-			Layout.minimumWidth: mainWindow.width * 0.3
+			Layout.minimumWidth: Math.max(stepControl.implicitWidth, sequenceControl.implicitWidth)
 
 			StepControl {
 				id: stepControl
-				Layout.minimumHeight: mainWindow.height * 0.3
+				Layout.minimumHeight: implicitHeight
 
 				Layout.fillWidth: true
 			}
 
 			SequenceControl {
 				id: sequenceControl
-				Layout.minimumHeight: mainWindow.height * 0.3
+				Layout.minimumHeight: implicitHeight
 			}
 		}
 

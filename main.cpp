@@ -20,12 +20,26 @@
 
 #include <QApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QtQml>
+#include "sequencer.h"
+#include "sequence.h"
 
 int main(int argc, char *argv[])
 {
 	QApplication app(argc, argv);
 
+	// Registering the Sequence type to QML. It is not possible to create
+	// this type directly from QML (but we don't need to)
+	qmlRegisterType<Sequence>();
+
+	Sequencer sequencer;
+
 	QQmlApplicationEngine engine;
+
+	// Setting the sequencer as the context object
+	engine.rootContext()->setContextObject(&sequencer);
+
 	engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
 
 	return app.exec();

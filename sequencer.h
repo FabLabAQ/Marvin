@@ -22,11 +22,13 @@
 #define SEQUENCER_H
 
 #include <QObject>
+#include <memory>
+#include "sequence.h"
 
 /**
- * @brief The class implementing a command sequencer
+ * \brief The class implementing a command sequencer
  *
- * This class is responsible of storing a sequnce of position and of sending it
+ * This class is responsible of storing a sequence of position and of sending it
  * to the board which actually moves the robot
  * COMPLETE HERE
  * THIS SHOULD BE A QML SINGLETON
@@ -34,12 +36,23 @@
 class Sequencer : public QObject
 {
 	Q_OBJECT
+	Q_PROPERTY(Sequence* sequence READ sequence NOTIFY sequenceChanged)
+
 public:
 	explicit Sequencer(QObject *parent = 0);
 
+	Sequence* sequence()
+	{
+		return m_sequence.get();
+	}
+
 signals:
+	void sequenceChanged();
 
 public slots:
+
+private:
+	std::unique_ptr<Sequence> m_sequence;
 };
 
 #endif // SEQUENCER_H

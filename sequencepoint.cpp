@@ -18,24 +18,67 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include "sequencer.h"
+#include "sequencepoint.h"
+#include <QJsonArray>
 
-// ONLY FOR TESTING, REMOVE!!!
-namespace {
-	const SequencePoint minPoint(QVector<double>() << -1.0 << 40.0 << -36.0, 3, 1);
-	const SequencePoint maxPoint(QVector<double>() << 4.0 << 230.0 << 75.0, 3000, 10000);
-}
-
-Sequencer::Sequencer(QObject *parent)
-	: QObject(parent)
-	, m_sequence(std::make_unique<Sequence>(3, minPoint, maxPoint))
+SequencePoint::SequencePoint(QVector<double> p, int d, int t)
+	: point(p)
+	, duration(d)
+	, timeToTarget(t)
 {
-	SequencePoint p;
-
-	p.duration = 100;
-	p.timeToTarget = 300;
-	p.point = QVector<double>() << 2.5 << 53.0 << 19.7;
-	m_sequence->append();
-	m_sequence->setPoint(p);
 }
 
+bool SequencePoint::fromJson(const QJsonObject& json)
+{
+	point.clear();
+	duration = -1;
+	timeToTarget = -1;
+
+	// Reading the three keys: point...
+	QJsonValue p = json["point"];
+	if (!p.isArray()) {
+		return false;
+	}
+	for (auto v: p.toArray()) {
+		if (!v.isDouble()) {
+			return false;
+		}
+		point.append(v.toDouble());
+	}
+
+	// ... duration...
+	QJsonValue d = json["duration"];
+	if (!d.isDouble()) {
+		return false;
+	}
+	duration = static_cast<int>(d.toDouble());
+
+	// ... and timeToTarget.
+	QJsonValue t = json["timeToTarget"];
+	if (!t.isDouble()) {
+		return false;
+	}
+	timeToTarget = static_cast<int>(t.toDouble());
+
+	return true;
+}
+
+QJsonObject SequencePoint::toJson() const
+{
+	QJsonObject o;
+
+	// Adding the three keys: point...
+	QJsonArray p;
+	for (auto c: point) {
+		p.append(c);
+	}
+	o.insert("point", p);
+
+	// ... duration...
+	o.insert("duration", duration);
+
+	// and timeToTarget
+	o.insert("timeToTarget", timeToTarget);
+
+	return o;
+}

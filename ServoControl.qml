@@ -23,11 +23,40 @@ import QtQuick.Controls 1.3
 import QtQuick.Layouts 1.1
 
 // The item containing controls for servo positioning
-Item {
-	Text {
-		anchors.fill: parent
+ScrollView {
+	id: mainItem
 
-		text: "ServoControl"
+	enabled: (sequence.curPoint >= 0)
+
+	Item {
+		implicitHeight: mainLayout.implicitHeight + (2 * mainLayout.anchors.margins)
+		implicitWidth: mainLayout.implicitWidth + (2 * mainLayout.anchors.margins)
+
+		ColumnLayout {
+			id: mainLayout
+			anchors.fill: parent
+			anchors.margins: 5
+
+			SingleServoControl {
+				width: 200
+				height: 100
+				servoID: 0
+				orientation: Qt.Vertical
+			}
+
+			SingleServoControl {
+				width: 200
+				height: 100
+				servoID: 1
+				orientation: Qt.Vertical
+			}
+
+			SingleServoControl {
+				width: 200
+				height: 100
+				servoID: 2
+				orientation: Qt.Vertical
+			}
+		}
 	}
 }
-

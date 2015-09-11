@@ -30,28 +30,102 @@ Item {
 	// valid value (greater or equal to 0)
 	property int servoID: -1
 
-	// The mininmum value of the servo range
-	property real rangeMin: 0
+	// Thid object is only needed to hide some properties from the extern
+	QtObject {
+		id: internal
 
-	// The maxinmum value of the servo range
-	property real rangeMax: 100
+		// The mininmum value of the servo range
+		property real rangeMin: 0
+
+		// The maxinmum value of the servo range
+		property real rangeMax: 100
+	}
 
 	// The arrangement of the slider and spinbox. This must be either
 	// Qt.Horizontal or Qt.Vertical
-	property int orientation: Qt.Horizontal
+	property int orientation: Qt.Vertical
 
 	GridLayout {
+		anchors.fill: parent
+
 		// Rows and columns depend on the orientatation
 		rows: (mainItem.orientation == Qt.Horizontal) ? 1 : 2
 		columns:  (mainItem.orientation == Qt.Horizontal) ? 2 : 1
 
 		Slider {
-			controllare se si chiama così
+			id: slider
+			Layout.fillWidth: (mainItem.orientation == Qt.Horizontal) ? false : true
+
+			minimumValue: internal.rangeMin
+			maximumValue: internal.rangeMax
+			orientation: Qt.Horizontal
+			updateValueWhileDragging: true
+
+			onValueChanged: {
+				textInput.text = value
+
+				// Here we also update the value in the sequence
+				// if we have a valid servoID
+				if ((mainItem.servoID >= 0) && (mainItem.servoID < sequence.pointDim)) {
+					sequence.setPointCoordinate(servoID, value)
+				}
+			}
 		}
 
-		SpinBox {
-			per i double
+		TextField {
+			id: textInput
+			Layout.fillWidth: (mainItem.orientation == Qt.Horizontal) ? false : true
+
+			validator: DoubleValidator {
+				bottom: internal.rangeMin
+				top: internal.rangeMax
+			}
+
+			onTextChanged: {
+				if (acceptableInput) {
+					slider.value = parseFloat(text)
+				}
+			}
 		}
+	}
+
+	Component.onCompleted: {
+		// Checking that our id is valid
+		if ((mainItem.servoID < 0) || (mainItem.servoID >= sequence.pointDim)) {
+			return;
+		}
+
+		// Setting limits to sliders and spinbox and getting value from
+		// sequence
+		fixLimitsAndValue();
+
+		// Connecting the signal emitted on sequence change, cur point
+		// change and cur point values change to the function to fix
+		// limits and and re-read value for the sequence
+		onSequenceChanged.connect(fixLimitsAndValue);
+		sequence.onCurPointChanged.connect(fixLimitsAndValue);
+		sequence.onCurPointValuesChanged.connect(fixLimitsAndValue)
+	}
+
+	// Sets the limits and value to the ones for the current point
+	function fixLimitsAndValue()
+	{
+		// Checking that our id is valid
+		if ((mainItem.servoID < 0) || (mainItem.servoID >= sequence.pointDim)) {
+			return;
+		}
+
+		// Getting the value before changing limits, because changing
+		// limits may modify the value
+		var value = sequence.pointCoordinate(mainItem.servoID);
+
+		// Now setting limits
+		internal.rangeMin = sequence.minPointCoordinate(mainItem.servoID)
+		internal.rangeMax = sequence.maxPointCoordinate(mainItem.servoID)
+
+		// Finally setting value. We only set the value of the slider,
+		// this will automatically change the value of the text field
+		slider.value = value;
 	}
 }
 
