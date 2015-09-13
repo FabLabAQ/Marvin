@@ -39,6 +39,10 @@
  * Also the point is clamped to stay within the limits. This class also have a
  * notion of "current point". All functions that do not explicitly take the
  * position of the point in the sequence as parameter, act on the current point.
+ * This class can be serialized as a JSON data structure. The format is simple:
+ * the JSON document is a list, with the first two points that are respectively
+ * the min and max values, and the remaining points the elements of the
+ * sequence.
  * \note This class makes little checks on the validity of point positions, make
  *       sure you always use valid positions. The current point, instead, always
  *       have a valid value (if the sequence is empty, its value is -1) and is
@@ -53,6 +57,7 @@ class Sequence : public QObject
 	Q_PROPERTY(unsigned int pointDim READ pointDim)
 	Q_PROPERTY(int numPoints READ numPoints NOTIFY numPointsChanged)
 	Q_PROPERTY(int curPoint READ curPoint WRITE setCurPoint NOTIFY curPointChanged)
+	Q_PROPERTY(bool isModified READ isModified NOTIFY isModifiedChanged)
 
 public:
 	/**
@@ -133,6 +138,17 @@ public:
 	}
 
 	/**
+	 * \brief Returns true if the sequence has been modified after
+	 *        construction or after the last time it was saved
+	 *
+	 * \return true if the sequence has been modified
+	 */
+	bool isModified() const
+	{
+		return m_isModified;
+	}
+
+	/**
 	 * \brief Sets the current point
 	 *
 	 * \param p the new current point. If negative, the current point is set
@@ -145,7 +161,7 @@ public:
 	 * \brief Loads a sequence from file
 	 *
 	 * This returns a unique_ptr (we cannot retutrn by value because we have
-	 * no copy nor move constructor)
+	 * no copy nor move constructor). The sequence is marked as unmodified.
 	 * \param filename the name of the file to read
 	 * \return the loaded sequence. The sequence is not valid in case of
 	 *         errors
@@ -156,7 +172,7 @@ public:
 	 * \brief Loads a sequence from its JSON representation
 	 *
 	 * This returns a unique_ptr (we cannot retutrn by value because we have
-	 * no copy nor move constructor)
+	 * no copy nor move constructor). The sequence is marked as unmodified.
 	 * \param json the json representation of the sequence
 	 * \return the loaded sequence. The sequence is not valid in case of
 	 *         errors
@@ -166,6 +182,7 @@ public:
 	/**
 	 * \brief Saves the sequence to file
 	 *
+	 * If successuful, this resets the isModified flag to false
 	 * \param filename the name of the file to which the sequence is saved
 	 * \return false in case of error, true otherwise
 	 */
@@ -174,6 +191,7 @@ public:
 	/**
 	 * \brief Saves the sequence to a JSON document
 	 *
+	 * If successuful, this resets the isModified flag to false
 	 * \return the JSON document representing the sequence
 	 */
 	QJsonDocument save() const;
@@ -429,6 +447,11 @@ signals:
 	 */
 	void curPointValuesChanged();
 
+	/**
+	 * \brief The signal emitted the first time the sequence is modified
+	 */
+	void isModifiedChanged();
+
 private:
 	/**
 	 * \brief Validates a point eventually changing it so that it has the
@@ -440,6 +463,12 @@ private:
 	 * \return the validated point
 	 */
 	SequencePoint validatePoint(SequencePoint p, bool skipLimits = false) const;
+
+	/**
+	 * \brief Sets the sequence as modified and emites the signal if this is
+	 *        the first modification
+	 */
+	void sequenceModified();
 
 	/**
 	 * \brief The dimensionality of points
@@ -471,6 +500,12 @@ private:
 	 * This is -1 if the sequence is empty
 	 */
 	int m_curPoint;
+
+	/**
+	 * \brief True if this sequence has been modified after construction or
+	 *        after the last time it was saved
+	 */
+	mutable bool m_isModified;
 };
 
 #endif // SEQUENCE_H

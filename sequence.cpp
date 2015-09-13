@@ -29,6 +29,7 @@ Sequence::Sequence(unsigned int pointDim, SequencePoint minVals, SequencePoint m
 	, m_max(validatePoint(maxVals, true))
 	, m_sequence()
 	, m_curPoint(-1)
+	, m_isModified(false)
 {
 }
 
@@ -72,9 +73,15 @@ std::unique_ptr<Sequence> Sequence::load(const QJsonDocument& json)
 
 	QList<SequencePoint> list;
 	SequencePoint sp;
+	SequencePoint minPoint;
+	SequencePoint maxPoint;
+
 	// The dimension of the points, to check all points have the same
 	// dimension
 	int dim = -1;
+	// The index of the current point. We need this because the first two
+	// points are the min and the max
+	int index = 0;
 	bool error = false;
 	for (auto jsp: json.array()) {
 		if (!jsp.isObject()) {
@@ -85,25 +92,40 @@ std::unique_ptr<Sequence> Sequence::load(const QJsonDocument& json)
 			error = true;
 			break;
 		}
-		list.append(sp);
+
+		// The first two elements of the list are the min and max
+		if (index == 0) {
+			minPoint = sp;
+		} else if (index == 1) {
+			maxPoint = sp;
+		} else {
+			list.append(sp);
+		}
+
 		if ((dim != -1) && (dim != sp.point.length())) {
 			error = true;
 			break;
 		}
 		dim = sp.point.length();
+		++index;
 	}
 
-	if (error) {
+	if (error || (index < 1)) {
 		return std::make_unique<Sequence>();
 	}
 
 	// If we get here, loading was successful, we can create the Sequence
 	// object
-	std::unique_ptr<Sequence> s = std::make_unique<Sequence>(dim);
-	s->m_sequence = list;
+	std::unique_ptr<Sequence> s = std::make_unique<Sequence>(dim, minPoint, maxPoint);
+	// Inserting one element at a time to be able to validate them
+	for (auto sp: list) {
+		s->m_sequence.append(s->validatePoint(sp));
+	}
 	if (!list.isEmpty()) {
 		s->m_curPoint = 0;
 	}
+
+	// m_isModified remains false
 
 	return s;
 }
@@ -114,7 +136,13 @@ bool Sequence::save(QString filename) const
 		return false;
 	}
 
+	// This is needed because the other save function changes the value of
+	// the flag, but if cannot save the file, we must not change it to false
+	const bool oldIsModified = m_isModified;
+
 	QJsonDocument doc = save();
+
+	m_isModified = oldIsModified;
 
 	QFile f(filename);
 
@@ -128,6 +156,8 @@ bool Sequence::save(QString filename) const
 		return false;
 	}
 
+	m_isModified = false;
+
 	return true;
 }
 
@@ -138,9 +168,15 @@ QJsonDocument Sequence::save() const
 	}
 
 	QJsonArray s;
+
+	// The first two elements are the min and max of points
+	s.append(m_min.toJson());
+	s.append(m_max.toJson());
 	for (auto sp: m_sequence) {
 		s.append(sp.toJson());
 	}
+
+	m_isModified = false;
 
 	return QJsonDocument(s);
 }
@@ -152,7 +188,7 @@ void Sequence::insertAfterCurrent()
 	}
 
 	if (m_curPoint == -1) {
-		m_sequence.append(SequencePoint());
+		m_sequence.append(validatePoint(SequencePoint()));
 	} else {
 		m_sequence.insert(m_curPoint + 1, validatePoint(m_sequence[m_curPoint]));
 	}
@@ -161,6 +197,9 @@ void Sequence::insertAfterCurrent()
 
 	++m_curPoint;
 	emit curPointChanged();
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 void Sequence::insertBeforeCurrent()
@@ -170,7 +209,10 @@ void Sequence::insertBeforeCurrent()
 	}
 
 	if (m_curPoint == -1) {
-		m_sequence.append(SequencePoint());
+		m_sequence.append(validatePoint(SequencePoint()));
+
+		m_curPoint = 0;
+		emit curPointChanged();
 	} else {
 		m_sequence.insert(m_curPoint, validatePoint(m_sequence[m_curPoint]));
 	}
@@ -181,6 +223,9 @@ void Sequence::insertBeforeCurrent()
 	// are the same because conceptually the index of the current point
 	// didn't change but the current point did change
 	emit curPointValuesChanged();
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 void Sequence::append()
@@ -196,6 +241,9 @@ void Sequence::append()
 
 	m_curPoint = m_sequence.length() - 1;
 	emit curPointChanged();
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 void Sequence::removeCurrent()
@@ -218,6 +266,9 @@ void Sequence::removeCurrent()
 		// index of the current point didn't change but values did
 		emit curPointValuesChanged();
 	}
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 void Sequence::clear()
@@ -234,6 +285,9 @@ void Sequence::clear()
 		m_curPoint = -1;
 		emit curPointChanged();
 	}
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 const SequencePoint& Sequence::min() const
@@ -335,7 +389,13 @@ void Sequence::setPoint(int pos, SequencePoint p)
 	}
 
 	// Forcing point to be compliant with the set dimension and limits
+	const SequencePoint old = m_sequence[pos];
 	m_sequence[pos] = validatePoint(p);
+
+	// If the point didn't actually changed, not emitting signals
+	if (old == m_sequence[pos]) {
+		return;
+	}
 
 	emit pointValuesChanged(pos);
 
@@ -344,6 +404,9 @@ void Sequence::setPoint(int pos, SequencePoint p)
 	if (pos == m_curPoint) {
 		emit curPointValuesChanged();
 	}
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 void Sequence::setPoint(SequencePoint p)
@@ -361,7 +424,13 @@ void Sequence::setPointCoordinate(int pos, int c, double v)
 		return;
 	}
 
+	const double old = m_sequence[pos].point[c];
 	m_sequence[pos].point[c] = std::min(m_max.point[c], std::max(m_min.point[c], v));
+
+	// If the point didn't actually changed, not emitting signals
+	if (old == m_sequence[pos].point[c]) {
+		return;
+	}
 
 	emit pointValuesChanged(pos);
 
@@ -370,6 +439,9 @@ void Sequence::setPointCoordinate(int pos, int c, double v)
 	if (pos == m_curPoint) {
 		emit curPointValuesChanged();
 	}
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 void Sequence::setPointCoordinate(int c, double v)
@@ -387,7 +459,13 @@ void Sequence::setDuration(int pos, int d)
 		return;
 	}
 
+	const int old = m_sequence[pos].duration;
 	m_sequence[pos].duration = std::min(m_max.duration, std::max(m_min.duration, d));
+
+	// If the point didn't actually changed, not emitting signals
+	if (old == m_sequence[pos].duration) {
+		return;
+	}
 
 	emit pointValuesChanged(pos);
 
@@ -396,6 +474,9 @@ void Sequence::setDuration(int pos, int d)
 	if (pos == m_curPoint) {
 		emit curPointValuesChanged();
 	}
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 void Sequence::setDuration(int d)
@@ -413,7 +494,13 @@ void Sequence::setTimeToTarget(int pos, int t)
 		return;
 	}
 
+	const int old = m_sequence[pos].timeToTarget;
 	m_sequence[pos].timeToTarget = std::min(m_max.timeToTarget, std::max(m_min.timeToTarget, t));
+
+	// If the point didn't actually changed, not emitting signals
+	if (old == m_sequence[pos].timeToTarget) {
+		return;
+	}
 
 	emit pointValuesChanged(pos);
 
@@ -422,6 +509,9 @@ void Sequence::setTimeToTarget(int pos, int t)
 	if (pos == m_curPoint) {
 		emit curPointValuesChanged();
 	}
+
+	// The sequence has been modified
+	sequenceModified();
 }
 
 void Sequence::setTimeToTarget(int t)
@@ -457,4 +547,13 @@ SequencePoint Sequence::validatePoint(SequencePoint p, bool skipLimits) const
 	p.timeToTarget = std::min(m_max.timeToTarget, std::max(m_min.timeToTarget, p.timeToTarget));
 
 	return p;
+}
+
+void Sequence::sequenceModified()
+{
+	if (!m_isModified) {
+		m_isModified = true;
+
+		emit isModifiedChanged();
+	}
 }

@@ -45,6 +45,8 @@ Item {
 			}
 
 			SpinBox {
+				id: curStepSpinBox
+
 				decimals: 0
 
 				Layout.fillWidth: true

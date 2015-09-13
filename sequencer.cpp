@@ -19,6 +19,9 @@
  ******************************************************************************/
 
 #include "sequencer.h"
+#include <QFile>
+#include <QUrl>
+#include <QDebug>
 
 // ONLY FOR TESTING, REMOVE!!!
 namespace {
@@ -30,12 +33,30 @@ Sequencer::Sequencer(QObject *parent)
 	: QObject(parent)
 	, m_sequence(std::make_unique<Sequence>(3, minPoint, maxPoint))
 {
-	SequencePoint p;
-
-	p.duration = 100;
-	p.timeToTarget = 300;
-	p.point = QVector<double>() << 2.5 << 53.0 << 19.7;
-	m_sequence->append();
-	m_sequence->setPoint(p);
 }
 
+void Sequencer::newSequence()
+{
+	m_sequence = std::make_unique<Sequence>(3, minPoint, maxPoint);
+
+	emit sequenceChanged();
+}
+
+bool Sequencer::saveSequence(QString filename)
+{
+	return m_sequence->save(QUrl(filename).toLocalFile());
+}
+
+bool Sequencer::loadSequence(QString filename)
+{
+	m_sequence = Sequence::load(QUrl(filename).toLocalFile());
+
+	emit sequenceChanged();
+
+	return m_sequence->isValid();
+}
+
+bool Sequencer::fileExists(QString filename)
+{
+	return QFile::exists(QUrl(filename).toLocalFile());
+}

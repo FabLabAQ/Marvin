@@ -61,6 +61,14 @@ struct SequencePoint
 	QJsonObject toJson() const;
 
 	/**
+	 * \brief Returns true if the two points are equal
+	 *
+	 * \param other the other point to check
+	 * \return true if the two points are equal
+	 */
+	bool operator==(const SequencePoint& other) const;
+
+	/**
 	 * \brief The point
 	 */
 	QVector<double> point;

@@ -26,8 +26,6 @@ import QtQuick.Layouts 1.1
 ScrollView {
 	id: mainItem
 
-	enabled: (sequence.curPoint >= 0)
-
 	Item {
 		implicitHeight: mainLayout.implicitHeight + (2 * mainLayout.anchors.margins)
 		implicitWidth: mainLayout.implicitWidth + (2 * mainLayout.anchors.margins)

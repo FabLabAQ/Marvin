@@ -26,6 +26,9 @@ import QtQuick.Layouts 1.1
 Item {
 	id: mainItem
 
+	// Only enabled if there is a valid point
+	enabled: (sequence.curPoint >= 0)
+
 	// The id of the servo controlled by this item. You MUST set this to a
 	// valid value (greater or equal to 0)
 	property int servoID: -1
@@ -90,6 +93,10 @@ Item {
 	}
 
 	Component.onCompleted: {
+		// Initialize the text with the value in the slider. This is
+		// needed to avoid that the text area remains blank
+		textInput.text = slider.value;
+
 		// Checking that our id is valid
 		if ((mainItem.servoID < 0) || (mainItem.servoID >= sequence.pointDim)) {
 			return;
@@ -97,14 +104,23 @@ Item {
 
 		// Setting limits to sliders and spinbox and getting value from
 		// sequence
-		fixLimitsAndValue();
+		reconnectAndSetData();
 
-		// Connecting the signal emitted on sequence change, cur point
-		// change and cur point values change to the function to fix
-		// limits and and re-read value for the sequence
-		onSequenceChanged.connect(fixLimitsAndValue);
+		// Connecting the signal emitted on sequence change
+		onSequenceChanged.connect(reconnectAndSetData);
+	}
+
+	// Connects signals of the sequence and the calls fixLimitsAndValues
+	function reconnectAndSetData()
+	{
+		// Fix limits and values explicitly
+		fixLimitsAndValue()
+
+		// Connecting the signal emitted on cur point change and cur
+		// point values change to the function to fix limits and and
+		// re-read value for the sequence
 		sequence.onCurPointChanged.connect(fixLimitsAndValue);
-		sequence.onCurPointValuesChanged.connect(fixLimitsAndValue)
+		sequence.onCurPointValuesChanged.connect(fixLimitsAndValue);
 	}
 
 	// Sets the limits and value to the ones for the current point

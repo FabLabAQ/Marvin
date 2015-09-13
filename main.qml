@@ -32,28 +32,71 @@ ApplicationWindow {
 	height: 480
 	visible: true
 
+	// This component keeps som internal variables
+	QtObject {
+		id: internal
+
+		// The name of the last file that has been loaded
+		property string filename: ""
+
+		// Set to true when we should close without checking whether the
+		// current sequence was modified
+		property bool forceClose: false
+
+		// The name of the file selected to save
+		property string selectedFilenameToSave
+	}
+
 	menuBar: MenuBar {
 		Menu {
 			title: qsTr("&File")
+
 			MenuItem {
 				text: qsTr("&New sequence")
-				onTriggered: messageDialog.show(qsTr("New action triggered"));
+
+				onTriggered: {
+					if (sequence.isModified) {
+						// Asking the user for confirmation. The code in the
+						// dialog will create a new sequence if needed
+						newConfirmDialog.open();
+					} else {
+						newSequence();
+					}
+				}
 			}
 			MenuItem {
 				text: qsTr("&Open sequence")
-				onTriggered: messageDialog.show(qsTr("Open action triggered"));
+
+				onTriggered:  {
+					if (sequence.isModified) {
+						// Asking the user for confirmation. The code in the
+						// dialog will create a new sequence if needed
+						openConfirmDialog.open();
+					} else {
+						openSequenceDialog.open();
+					}
+				}
 			}
 			MenuItem {
 				text: qsTr("&Save sequence")
-				onTriggered: messageDialog.show(qsTr("Save action triggered"));
+
+				onTriggered: {
+					if (internal.filename == "") {
+						// Using the Save As.. dialog
+						saveSequenceDialog.open();
+					} else {
+						saveSequence(internal.filename);
+					}
+				}
 			}
 			MenuItem {
 				text: qsTr("S&ave sequence as...")
-				onTriggered: messageDialog.show(qsTr("SaveAs action triggered"));
+
+				onTriggered: saveSequenceDialog.open();
 			}
 			MenuItem {
 				text: qsTr("E&xit")
-				onTriggered: Qt.quit();
+				onTriggered: mainWindow.close();
 			}
 		}
 		Menu {
@@ -91,6 +134,73 @@ ApplicationWindow {
 			Layout.minimumWidth: mainWindow.width * 0.3
 
 			Layout.fillWidth: true
+		}
+	}
+
+	MessageDialog {
+		id: confirmClosingDialog
+
+		title: "Discard changes?"
+		text: "The current sequence has unsaved modifications. Discard changes and exit?"
+		standardButtons: StandardButton.Yes | StandardButton.No
+
+		onYes: {
+			internal.forceClose = true;
+			mainWindow.close();
+		}
+	}
+
+	MessageDialog {
+		id: newConfirmDialog
+
+		title: "Discard changes?"
+		text: "The current sequence has unsaved modifications. Discard changes and create a new sequence?"
+		standardButtons: StandardButton.Yes | StandardButton.No
+
+		onYes: newSequence();
+	}
+
+	MessageDialog {
+		id: openConfirmDialog
+
+		title: "Discard changes?"
+		text: "The current sequence has unsaved modifications. Discard changes and open a new sequence?"
+		standardButtons: StandardButton.Yes | StandardButton.No
+
+		onYes: openSequenceDialog.open();
+	}
+
+	FileDialog {
+		id: openSequenceDialog
+		title: "Open..."
+		nameFilters: ["Sequence files (*.seq)"]
+		selectExisting: true
+
+		onAccepted: {
+			internal.filename = openSequenceDialog.fileUrl
+			loadSequence(openSequenceDialog.fileUrl);
+		}
+	}
+
+	FileDialog {
+		id: saveSequenceDialog
+		title: "Save As..."
+		nameFilters: ["Sequence files (*.seq)"]
+		selectExisting: false
+
+		onAccepted: {
+			internal.filename = saveSequenceDialog.fileUrl;
+			saveSequence(saveSequenceDialog.fileUrl);
+		}
+	}
+
+	onClosing: {
+		if (!internal.forceClose && sequence.isModified) {
+			close.accepted = false;
+
+			// Asking the user for confirmation. The code in the
+			// dialog will create a new sequence if needed
+			confirmClosingDialog.open();
 		}
 	}
 }

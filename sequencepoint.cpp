@@ -82,3 +82,11 @@ QJsonObject SequencePoint::toJson() const
 
 	return o;
 }
+
+bool SequencePoint::operator==(const SequencePoint& other) const
+{
+	// We check point last because it is the most expensive check
+	return (other.duration == duration) &&
+	       (other.timeToTarget == timeToTarget) &&
+	       (other.point == point);
+}

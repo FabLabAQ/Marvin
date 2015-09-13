@@ -50,6 +50,10 @@ signals:
 	void sequenceChanged();
 
 public slots:
+	void newSequence();
+	bool saveSequence(QString filename);
+	bool loadSequence(QString filename);
+	bool fileExists(QString filename); // utility
 
 private:
 	std::unique_ptr<Sequence> m_sequence;
