@@ -18,10 +18,18 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-import QtQuick 2.4
-import QtQuick.Controls 1.3
-import QtQuick.Window 2.2
-import QtQuick.Dialogs 1.2
+// Qt 5.4
+//import QtQuick 2.4
+//import QtQuick.Controls 1.3
+//import QtQuick.Window 2.2
+//import QtQuick.Dialogs 1.2
+//import QtQuick.Layouts 1.1
+
+// Qt 5.2
+import QtQuick 2.0
+import QtQuick.Controls 1.1
+import QtQuick.Window 2.0
+import QtQuick.Dialogs 1.1
 import QtQuick.Layouts 1.1
 
 // The main window of the Application
