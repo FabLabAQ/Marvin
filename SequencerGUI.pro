@@ -3,7 +3,8 @@ TEMPLATE = app
 QT += qml quick widgets
 
 # CONFIG += c++14
-QMAKE_CXXFLAGS += -std=c++14 -Wall -Wextra
+# QMAKE_CXXFLAGS += -std=c++14 -Wall -Wextra
+QMAKE_CXXFLAGS += -std=c++11 -Wall -Wextra
 
 SOURCES += main.cpp \
     sequencer.cpp \
@@ -21,4 +22,5 @@ include(deployment.pri)
 HEADERS += \
     sequencer.h \
     sequence.h \
-    sequencepoint.h
+    sequencepoint.h \
+    utils.h

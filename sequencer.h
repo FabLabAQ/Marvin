@@ -22,7 +22,7 @@
 #define SEQUENCER_H
 
 #include <QObject>
-#include <memory>
+#include "utils.h"
 #include "sequence.h"
 
 /**

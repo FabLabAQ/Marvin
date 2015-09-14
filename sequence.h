@@ -24,7 +24,7 @@
 #include <QObject>
 #include <QList>
 #include <QJsonDocument>
-#include <memory>
+#include "utils.h"
 #include "sequencepoint.h"
 
 /**

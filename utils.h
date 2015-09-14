@@ -18,75 +18,32 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#ifndef SEQUENCEPOINT_H
-#define SEQUENCEPOINT_H
+#ifndef UTILS
+#define UTILS
 
-#include <QVector>
-#include <QJsonObject>
-#include "utils.h"
+#include <memory>
 
 /**
- * \brief A single point in a sequence
+ * \file utils.h
  *
- * This structure models a single point in a sequence
+ * Utility functions
  */
-struct SequencePoint
-{
-	/**
-	 * \brief Constructor
-	 */
-	SequencePoint() = default;
 
-	/**
-	 * \brief Constructor
-	 *
-	 * \param p the point
-	 * \param d the duration in milliseconds
-	 * \param t the time to reach this point in milliseconds
-	 */
-	SequencePoint(QVector<double> p, int d, int t);
+// Checking C++ version and implementing std::make_unique if this is C++11
+#if __cplusplus <= 199711L
+	#error This program requires a C++14 or C++11 compiler
+#elif __cplusplus <= 201103L
 
-	/**
-	 * \brief Initializes this object from its JSON representation
-	 *
-	 * \param json the JSON object to read
-	 * \return false in case of error
-	 */
-	bool fromJson(const QJsonObject& json);
+// Implementing make_unique
+namespace std {
+	template<typename T, typename... Ts>
+	std::unique_ptr<T> make_unique(Ts&&... params)
+	{
+		return std::unique_ptr<T>(new T(std::forward<Ts>(params)...));
+	}
+}
 
-	/**
-	 * \brief Returns the JSON representation of this object
-	 *
-	 * \return The JSON representation of this object
-	 */
-	QJsonObject toJson() const;
+#endif
 
-	/**
-	 * \brief Returns true if the two points are equal
-	 *
-	 * \param other the other point to check
-	 * \return true if the two points are equal
-	 */
-	bool operator==(const SequencePoint& other) const;
-
-	/**
-	 * \brief The point
-	 */
-	QVector<double> point;
-
-	/**
-	 * \brief For how long the step should last in milliseconds
-	 *
-	 * The point should not be changed for this amount of milliseconds
-	 */
-	int duration;
-
-	/**
-	 * \brief The time spent to reach this point from the previous position
-	 *        in milliseconds
-	 */
-	int timeToTarget;
-};
-
-#endif // SEQUENCEPOINT_H
+#endif // UTILS
 
