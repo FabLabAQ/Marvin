@@ -5,5 +5,6 @@
         <file>SequenceControl.qml</file>
         <file>ServoControl.qml</file>
         <file>SingleServoControl.qml</file>
+        <file>robot.png</file>
     </qresource>
 </RCC>
