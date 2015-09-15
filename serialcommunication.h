@@ -26,6 +26,7 @@
 #include <QObject>
 #include <QTimer>
 #include <exception>
+#include <memory>
 #include "sequence.h"
 
 /**
@@ -134,13 +135,14 @@ private:
  * This class has two functionining modalities: stream and immediate. In stream
  * mode it is possible to pause and resume the stream, though the buffering
  * performed by the Arduino board prevents a precise stop. The startStream()
- * function starts the stream modalities, which must be terminated using the
- * stopStream() function. When in immediate mode, this connects to the
+ * function starts the stream modality, which must be terminated using the
+ * stop() function. When in immediate mode, this connects to the
  * curPointChanged() signal of the stream, thus sending a new command every time
  * the current point in the sequence changes. The startImmediate() function
- * starts the immediate modality, which must be terminated using the
- * stopImmediate() function. When in one modality it is not possible to call a
- * function of the other modality (an exception of type
+ * starts the immediate modality, which terminates when all points have been
+ * streamed or when the stop() function is called. In either cases the
+ * streamStopped() signal is emitted. When in one modality it is not possible to
+ * call a function of the other modality (an exception of type
  * SerialCommunicationException is thrown if this is attempted). An exception is
  * also thrown when functions of one modality are called before the modality is
  * started or when the serial port is not open.
@@ -196,201 +198,250 @@ private:
  * "sequence buffer full"
  * the character 'F' (1 byte)
  */
-//class SerialCommunication : public QObject
-//{
-//	Q_OBJECT
+class SerialCommunication : public QObject
+{
+	Q_OBJECT
 
-//public:
-//	/**
-//	 * \brief Constructor
-//	 *
-//	 * \param parent the parent object
-//	 */
-//	explicit SerialCommunication(QObject* parent = nullptr);
+public:
+	/**
+	 * \brief Constructor
+	 *
+	 * \param parent the parent object
+	 */
+	explicit SerialCommunication(QObject* parent = nullptr);
 
-//openSerial()
-//startStream()
-//pauseStream()
-//resumeStream()
-//stopStream()
-//startImmediate()
-//stopImmediate()
+	/**
+	 * \brief Destructor
+	 *
+	 * This stops any streamed sequence and closes the port
+	 */
+	virtual ~SerialCommunication();
 
-//	/**
-//	 * \brief Destructor
-//	 */
-//	virtual ~SerialCommunication();
+	/**
+	 * \brief Copy constructor is deleted
+	 *
+	 * \param other the object to copy
+	 */
+	SerialCommunication(const SerialCommunication& other) = delete;
 
-//	/**
-//	 * \brief Sets the serial port to use and opens it
-//	 *
-//	 * \param port the name of the port to use
-//	 */
-//	void setSerialPort(QString port);
+	/**
+	 * \brief Move constructor is deleted
+	 *
+	 * \param other the object to move into this
+	 */
+	SerialCommunication(SerialCommunication&& other) = delete;
 
-//	/**
-//	 * \brief Returns true if a command has been received and extracts the
-//	 *        command from the queue
-//	 *
-//	 * Ater a call to this function returns true, you can get command parts
-//	 * with receivedCommandParts*() functions
-//	 * \return true if a command has been received
-//	 */
-//	bool extractReceivedCommand();
+	/**
+	 * \brief Copy operator is deleted
+	 */
+	SerialCommunication& operator=(const SerialCommunication& other) = delete;
 
-//	/**
-//	 * \brief The number of parts in the received command
-//	 *
-//	 * This is only valid after extractReceivedCommand returns true
-//	 * \return the number of parts in the the received command
-//	 */
-//	int receivedCommandNumParts() const;
+	/**
+	 * \brief Move operator is deleted
+	 */
+	SerialCommunication& operator=(SerialCommunication&& other) = delete;
 
-//	/**
-//	 * \brief The i-th part of the received command as a string
-//	 *
-//	 * This is only valid after extractReceivedCommand returns true
-//	 * \param i the part to return
-//	 * \return the i-th part of the received command as a string
-//	 */
-//	QString receivedCommandPart(int i) const;
+	/**
+	 * \brief Opens the serial port
+	 *
+	 * If a port was already opened, closes it before opening the new one.
+	 * If however a sequence is being sent, throws an exception.
+	 * \param port the port to open
+	 * \param baudRate the baudrate
+	 * \return false in case of error, true if the port was opened
+	 *         successfully
+	 */
+	bool openSerial(QString port, int baudRate);
 
-//	/**
-//	 * \brief The i-th part of the received command as an int
-//	 *
-//	 * This is only valid after extractReceivedCommand returns true
-//	 * \param i the part to return
-//	 * \return the i-th part of the received command as an int
-//	 */
-//	int receivedCommandPartAsInt(int i) const;
+	/**
+	 * \brief Closes the serial port
+	 *
+	 * This cannot be called if a stream is being sent (call stop(),
+	 * before). If the stream is already closed, this does nothing
+	 */
+	void closeSerial();
 
-//	/**
-//	 * \brief The i-th part of the received command as a float
-//	 *
-//	 * This is only valid after extractReceivedCommand returns true
-//	 * \param i the part to return
-//	 * \return the i-th part of the received command as a float
-//	 */
-//	float receivedCommandPartAsFloat(int i) const;
+	/**
+	 * \brief Starts streaming the sequence
+	 *
+	 * This throws an exception in case of errors. The sequence current
+	 * point is updated as data is streamed (the current point will be the
+	 * next point to sent through the port). If the current point is changed
+	 * externally, the next point that is sent sequence will be the new
+	 * current point.
+	 * \param sequence the sequence to send. It must remain valid until the
+	 *                 stop() function is called or the sequence is finished
+	 * \param startFromCurrent if true the streaming starts from the current
+	 *                         point, otherwise starts from the beginning
+	 */
+	void startStream(Sequence* sequence, bool startFromCurrent = false);
 
-//	/**
-//	 * \brief Creates a new command to send
-//	 *
-//	 * After calling this function you can start appending command parts
-//	 * with the appendCommandPart() function, which adds parts separated by
-//	 * a whitespace
-//	 */
-//	void newCommandToSend();
+	/**
+	 * \brief Pauses streaming data
+	 *
+	 * This throws an exception in case of errors. This simply temporarily
+	 * stops sending data. To restart and continue from the point where
+	 * sending was interrupted, call resumeStream()
+	 */
+	void pauseStream();
 
-//	/**
-//	 * \brief Adds a part to the command to send
-//	 *
-//	 * Use this for strings
-//	 * \param part the part to add
-//	 */
-//	void appendCommandPart(QString part);
+	/**
+	 * \brief Resumes a paused stream
+	 *
+	 * This throws an exception in case of errors, but it the stream is
+	 * simply not paused, nothing happends. See the description of the
+	 * pauseStream() function for more information
+	 */
+	void resumeStream();
 
-//	/**
-//	 * \brief Adds a part to the command to send
-//	 *
-//	 * Use this for integers
-//	 * \param part the part to add
-//	 */
-//	void appendCommandPart(int part);
+	/**
+	 * \brief Starts sending the sequence in immediate mode
+	 *
+	 * This throws an exception in case of errors. Every time the current
+	 * point changes, a sequence is send through the port.
+	 * \param sequence the sequence to send. It must remain valid until the
+	 *                 stop() function is called
+	 */
+	void startImmediate(Sequence* sequence);
 
-//	/**
-//	 * \brief Adds a part to the command to send
-//	 *
-//	 * Use this for floats
-//	 * \param part the part to add
-//	 */
-//	void appendCommandPart(float part);
+	/**
+	 * \brief Stops sending the sequence
+	 *
+	 * This throws an exception in case of errors
+	 */
+	void stop();
 
-//	/**
-//	 * \brief Sends the last command
-//	 *
-//	 * If called multiple times without calling newCommandToSend() first,
-//	 * sends the same command over and over again
-//	 */
-//	void sendCommand();
+	/**
+	 * \brief Returns true if we have an associated stream, either in stream
+	 *        or immediate mode
+	 *
+	 * \return true if we have an associated stream, either in stream or
+	 *         immediate mode
+	 */
+	bool isStreaming() const
+	{
+		return (m_sequence != nullptr);
+	}
 
-//private slots:
-//	/**
-//	 * \brief The slot called when there is data ready to be read
-//	 *
-//	 * This calls the commandReceived function of controller
-//	 */
-//	void handleReadyRead();
+	/**
+	 * \brief Returns true if we are in stream mode
+	 *
+	 * \return true if we are in stream mode
+	 */
+	bool isStreamMode() const
+	{
+		m_isStreamMode;
+	}
 
-//	/**
-//	 * \brief The function called when there is an error in the serial
-//	 *        communication
-//	 *
-//	 * \param error the error code
-//	 */
-//	void handleError(QSerialPort::SerialPortError error);
+	/**
+	 * \brief Returns true if we are in immediate mode
+	 *
+	 * \return true if we are in immediate mode
+	 */
+	bool isImmediateMode() const
+	{
+		return m_isImmediateMode;
+	}
 
-//	/**
-//	 * \brief The slot called a second after the serial port is opened
-//	 *
-//	 * This is needed to give Arduino time to boot. All commands sent
-//	 * before this timeout expires are stored and send as soon as this is
-//	 * called
-//	 */
-//	void arduinoBootFinished();
+signals:
+	/**
+	 * \brief The signal emitted when starting streaming in stream mode
+	 */
+	void streamStarted();
 
-//private:
-//	/**
-//	 * \brief The function that actually sends data
-//	 *
-//	 * \param dataToSend the data  osend through the serial port
-//	 */
-//	void sendData(const QByteArray& dataToSend);
+	/**
+	 * \brief The signal emitted when the sequence streamed in stream mode
+	 *        is completed
+	 */
+	void streamStopped();
 
-//	/**
-//	 * \brief The controller object of the game
-//	 */
-//	Controller* const m_controller;
+	/**
+	 * \brief The signal emitted if there is an error writing or reading
+	 *        from the serial port
+	 *
+	 * \param error a description of the error
+	 */
+	void streamError(QString error);
 
-//	/**
-//	 * \brief The serial communication port
-//	 */
-//	QSerialPort m_serialPort;
+private slots:
+	/**
+	 * \brief The slot called when there is data ready to be read
+	 */
+	void handleReadyRead();
 
-//	/**
-//	 * \brief The timer to wait for Arduino boot to finish
-//	 *
-//	 * See arduinoBootFinished() description
-//	 */
-//	QTimer m_arduinoBoot;
+	/**
+	 * \brief The function called when there is an error in the serial
+	 *        communication
+	 *
+	 * \param error the error code
+	 */
+	void handleError(QSerialPort::SerialPortError error);
 
-//	/**
-//	 * \brief The list of commands sent prior to Arduino finishing boot
-//	 *
-//	 * See arduinoBootFinished() description
-//	 */
-//	QList<QByteArray> m_preBootCommands;
+	/**
+	 * \brief The slot called a second after the serial port is opened to
+	 *        start sending data
+	 *
+	 * This is needed to give Arduino time to boot. This function is also
+	 * called if a sequence is started after arduino has booted. Basically
+	 * this function automatically sends data if called from the timer and
+	 * streaming has already been requested. If called from the timer but
+	 * streaming hasn't been requested yet, it does nothing. When streaming
+	 * is requested, this function is called by either startStream() or
+	 * startImmediate() and starts sending data.
+	 */
+	void arduinoBootFinished();
 
-//	/**
-//	 * \brief The buffer of data from the serial port
-//	 */
-//	QByteArray m_incomingData;
+	/**
+	 * \brief The slot called when the current point in the sequence changes
+	 */
+	void curPointChanged();
 
-//	/**
-//	 * \brief When different from -1, a command has been received and is in
-//	 *        m_incomingData from position 0 to this position
-//	 */
-//	int m_endCommandPosition;
+private:
+	/**
+	 * \brief The function that actually sends data
+	 *
+	 * \param dataToSend the data to send through the serial port
+	 */
+	void sendData(const QByteArray& dataToSend);
 
-//	/**
-//	 * \brief The list of received command parts
-//	 */
-//	QStringList m_receivedCommandParts;
+	/**
+	 * \brief The serial communication port
+	 */
+	QSerialPort m_serialPort;
 
-//	/**
-//	 * \brief The buffer with parts of the command to send
-//	 */
-//	QByteArray m_commandPartsToSend;
-//};
+	/**
+	 * \brief The sequence to stream
+	 *
+	 * This is nullptr if there is no sequence to stream
+	 */
+	Sequence* m_sequence;
+
+	/**
+	 * \brief True if we are in stream modality
+	 */
+	bool m_isStreamMode;
+
+	/**
+	 * \brief True if we are in immediate modality
+	 */
+	bool m_isImmediateMode;
+
+	/**
+	 * \brief The timer to wait for Arduino boot to finish
+	 *
+	 * See arduinoBootFinished() description
+	 */
+	QTimer m_arduinoBoot;
+
+	/**
+	 * \brief The buffer of data from the serial port
+	 */
+	QByteArray m_incomingData;
+
+	/**
+	 * \brief If true streaming is paused in stream mode
+	 */
+	bool m_paused;
+};
 
 #endif // SERIALCOMMUNICATION_H
