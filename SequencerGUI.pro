@@ -1,6 +1,6 @@
 TEMPLATE = app
 
-QT += qml quick widgets
+QT += qml quick widgets serialport
 
 # CONFIG += c++14
 # QMAKE_CXXFLAGS += -std=c++14 -Wall -Wextra
@@ -9,7 +9,8 @@ QMAKE_CXXFLAGS += -std=c++11 -Wall -Wextra
 SOURCES += main.cpp \
     sequencer.cpp \
     sequence.cpp \
-    sequencepoint.cpp
+    sequencepoint.cpp \
+    serialcommunication.cpp
 
 RESOURCES += qml.qrc
 
@@ -23,4 +24,5 @@ HEADERS += \
     sequencer.h \
     sequence.h \
     sequencepoint.h \
-    utils.h
+    utils.h \
+    serialcommunication.h

@@ -6,5 +6,6 @@
         <file>ServoControl.qml</file>
         <file>SingleServoControl.qml</file>
         <file>robot.png</file>
+        <file>OptionsDialog.qml</file>
     </qresource>
 </RCC>
