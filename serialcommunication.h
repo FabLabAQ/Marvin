@@ -165,14 +165,17 @@ private:
  * are respected. Moreover the hardware responds to each sequence packet with
  * either a "sequence buffer not full" or a "sequence buffer full" packet. This
  * way the PC can send sequence packets until the hardware internal buffer is
- * full, to avoid delays in sequence timings. To terminate sequence execution
- * the PC sends a "stop" packet. The "start immediate mode" packet instructs the
- * hardware to immediately process incoming sequence packets. This means that
- * the "duration" property of sequence points is not respected and that a pose
- * it kept until a new sequence point arrives. In this case the hardware does
- * not send any packet back (there is no buffer). To termiante the immediate
- * mode, the PC sends a "stop" packet. Packets sent before either "start
- * sequence" or "start immediate mode" are discarded.
+ * full, to avoid delays in sequence timings. If the hardware sent a "sequence
+ * buffer full" packet, it will send a "sequence buffer not full" packet as soon
+ * as the buffer is no longer full (this "sequence buffer not full" packet can
+ * be sent at any time, not only in response to a packet from the PC). To
+ * terminate sequence execution the PC sends a "stop" packet. The "start
+ * immediate mode" packet instructs the hardware to immediately process incoming
+ * sequence packets. This means that the "duration" property of sequence points
+ * is not respected and that a pose it kept until a new sequence point arrives.
+ * In this case the hardware does not send any packet back (there is no buffer).
+ * To termiante the immediate mode, the PC sends a "stop" packet. Packets sent
+ * before either "start sequence" or "start immediate mode" are discarded.
  *
  * Here is the detailed description of every packet in the protocol.
  *
@@ -398,6 +401,26 @@ private slots:
 
 private:
 	/**
+	 * \brief Returns a sequence packet for the given point
+	 *
+	 * This function doesn't check that p has the length that was used in
+	 * the start stream or start immediate package, ensure this externally
+	 * (this condition is fulfilled if the same sequence is used for the
+	 * start and this function, as it should be)
+	 * \param p the point for which to create a packet
+	 * \return the packet for the point
+	 */
+	QByteArray createSequencePacketForPoint(const SequencePoint& p) const;
+
+	/**
+	 * \brief Moves the current point forward
+	 *
+	 * This function moves the current point forward by one. If we reach the
+	 * end of the sequence in stream mode, terminates the streaming.
+	 */
+	void incrementCurPoint();
+
+	/**
 	 * \brief The function that actually sends data
 	 *
 	 * \param dataToSend the data to send through the serial port
@@ -442,6 +465,12 @@ private:
 	 * \brief If true streaming is paused in stream mode
 	 */
 	bool m_paused;
+
+	/**
+	 * \brief True if we cannot send more sequence points because the queue
+	 *        of the hardware is full
+	 */
+	bool m_hardwareQueueFull;
 };
 
 #endif // SERIALCOMMUNICATION_H

@@ -29,6 +29,7 @@ SerialCommunication::SerialCommunication(QObject* parent)
 	, m_arduinoBoot()
 	, m_incomingData()
 	, m_paused(false)
+	, m_hardwareQueueFull(false)
 {
 	// Connecting signals from the serial port
 	connect(&m_serialPort, &QSerialPort::readyRead, this, &SerialCommunication::handleReadyRead);
@@ -106,6 +107,7 @@ void SerialCommunication::startStream(Sequence* sequence, bool startFromCurrent)
 	m_paused = false;
 	m_isStreamMode = true;
 	m_isImmediateMode = false;
+	m_hardwareQueueFull = false
 
 	// Saving the sequence and resetting the current point if needed
 	m_sequence = sequence;
@@ -141,7 +143,15 @@ void SerialCommunication::resumeStream()
 
 	// Resuming streaming
 	m_paused = false;
-	SEND CUR POINT IN STREAM
+
+	// Sending a sequence point if the hardware queue is not full
+	if (!m_hardwareQueueFull) {
+		sendData(createSequencePacketForPoint(m_sequence->point()));
+
+		// Moving current point forward by one or terminating the sequence if the current point
+		// was the last point
+		incrementCurPoint();
+	}
 }
 
 void SerialCommunication::startImmediate(Sequence* sequence)
@@ -191,6 +201,7 @@ void SerialCommunication::stop()
 	m_paused = false;
 	m_isStreamMode = false;
 	m_isImmediateMode = false;
+	m_hardwareQueueFull = false;
 }
 
 void SerialCommunication::handleReadyRead()
@@ -202,6 +213,8 @@ void SerialCommunication::handleReadyRead()
 	 *        is completed
 	 */
 	void streamStopped()
+
+			se queue full, mettere m_hardwareQueueFull a true, altrimenti a false
 }
 
 void SerialCommunication::handleError(QSerialPort::SerialPortError error)
@@ -238,6 +251,26 @@ void SerialCommunication::curPointChanged()
 	* \brief The slot called when the current point in the sequence changes
 }
 
+QByteArray SerialCommunication::createSequencePacketForPoint(const SequencePoint& p) const
+{
+	* \brief Returns a sequence packet for the given point
+	*
+	* This function doesn't check that p has the length that was used in
+	* the start stream or start immediate package, ensure this externally
+	* (this condition is fulfilled if the same sequence is used for the
+	* start and this function, as it should be)
+	* \param p the point for which to create a packet
+	* \return the packet for the point
+}
+
+void SerialCommunication::incrementCurPoint()
+{
+	* \brief Moves the current point forward
+	*
+	* This function moves the current point forward by one. If we reach the
+	* end of the sequence in stream mode, terminates the streaming (calling should be enough stop()).
+}
+
 void SerialCommunication::sendData(const QByteArray& dataToSend)
 {
 	 * \brief The function that actually sends data
@@ -259,96 +292,7 @@ DA WHAC-A-MAKER
 
 
 
-void SerialCommunication::setSerialPort(QString port)
-{
-	// Closing the old port
-	if (m_serialPort.isOpen()) {
-		m_serialPort.close();
-		m_serialPort.clearError();
-	}
 
-	// Setting the name of the port
-	m_serialPort.setBaudRate(115200);
-	m_serialPort.setPortName(port);
-
-	// Trying to open the port
-	if (!m_serialPort.open(QIODevice::ReadWrite)) {
-		// Here we can't throw an exception because otherwise it would be impossible to change the settings
-		// Simply printing a message to stderr
-		std::cerr << "Error opening serial port at " << port.toLatin1().data() << std::endl;
-	}
-
-	// This is necessary to give time to Arduino to "boot" (the board reboots every time the serial port
-	// is opened, and then there are 0.5 seconds taken by the bootloader)
-	m_arduinoBoot.start(1000);
-	m_preBootCommands.clear();
-}
-
-bool SerialCommunication::extractReceivedCommand()
-{
-	if (m_endCommandPosition == -1) {
-		return false;
-	}
-
-	// Taking the command. Here we don't take the closing newline. Wehn we split we keep empty parts to have
-	// a behavior compliant with the one on Arduino
-	QString command = m_incomingData.left(m_endCommandPosition);
-	m_receivedCommandParts = command.split(' ', QString::KeepEmptyParts);
-
-	// Removing data for the extracted command from the queue
-	m_incomingData = m_incomingData.mid(m_endCommandPosition + 1);
-
-	// Now fixing m_endCommandPosition
-	m_endCommandPosition = m_incomingData.indexOf('\n');
-
-// std::cerr << "===extractReceivedCommand=== command: \"" << command.toLatin1().data() << "\", m_endCommandPosition: " << m_endCommandPosition << ", all data: \"" << m_incomingData.data() << "\"" << std::endl;
-
-	return true;
-}
-
-int SerialCommunication::receivedCommandNumParts() const
-{
-	return m_receivedCommandParts.size();
-}
-
-QString SerialCommunication::receivedCommandPart(int i) const
-{
-	return m_receivedCommandParts[i];
-}
-
-int SerialCommunication::receivedCommandPartAsInt(int i) const
-{
-	return m_receivedCommandParts[i].toInt();
-}
-
-float SerialCommunication::receivedCommandPartAsFloat(int i) const
-{
-	return m_receivedCommandParts[i].toFloat();
-}
-
-void SerialCommunication::newCommandToSend()
-{
-	m_commandPartsToSend.clear();
-}
-
-void SerialCommunication::appendCommandPart(QString part)
-{
-	if (m_commandPartsToSend.size() != 0) {
-		m_commandPartsToSend.append(' ');
-	}
-
-	m_commandPartsToSend.append(part.toLatin1());
-}
-
-void SerialCommunication::appendCommandPart(int part)
-{
-	appendCommandPart(QString::number(part));
-}
-
-void SerialCommunication::appendCommandPart(float part)
-{
-	appendCommandPart(QString::number(part));
-}
 
 void SerialCommunication::sendCommand()
 {
