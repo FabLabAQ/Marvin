@@ -23,6 +23,8 @@
 
 SerialCommunication::SerialCommunication(QObject* parent)
 	: QObject(parent)
+	, m_serialPortName("/dev/ttyS0")
+	, m_baudRate(115200)
 	, m_serialPort()
 	, m_sequence(nullptr)
 	, m_isStreamMode(false)
@@ -43,39 +45,49 @@ SerialCommunication::SerialCommunication(QObject* parent)
 
 SerialCommunication::~SerialCommunication()
 {
-	// No exception must leave the destructor, so we catch everything here. We use two separated
-	// try-catch statements because we must always call both stop() and closeSerial()
-	try {
-		stop();
-	} catch (...) {
-	}
+	stop();
+	closeSerial();
+}
 
-	try {
-		closeSerial();
-	} catch (...) {
+void SerialCommunication::setSerialPortName(QString serialPortName)
+{
+	if (serialPortName != m_serialPortName) {
+		m_serialPortName = serialPortName;
+
+		emit serialPortNameChanged();
 	}
 }
 
-bool SerialCommunication::openSerial(QString port, int baudRate)
+void SerialCommunication::SerialCommunication::setBaudRate(int baudRate)
+{
+	if (baudRate != m_baudRate) {
+		m_baudRate  = baudRate;
+
+		emit baudRateChanged();
+	}
+}
+
+bool SerialCommunication::openSerial()
 {
 	if (isStreaming()) {
-		throw SerialCommunicationException("Cannot open port while a sequence is being streamed");
+		qDebug() << "SerialCommunication error: cannot open port while a sequence is being streamed";
+		return false;
 	}
 
 	// Closing the old port
-	if (m_serialPort.isOpen()) {
-		m_serialPort.close();
-		m_serialPort.clearError();
-	}
+	closeSerial();
 
 	// Setting the name and baud rate of the port
-	m_serialPort.setPortName(port);
-	m_serialPort.setBaudRate(baudRate);
+	m_serialPort.setPortName(m_serialPortName);
+	m_serialPort.setBaudRate(m_baudRate);
 
 	// Trying to open the port
 	if (!m_serialPort.open(QIODevice::ReadWrite)) {
 		return false;
 	}
+
+	// Signalling that the port is open
+	emit isConnectedChanged();
 
 	// This is necessary to give time to Arduino to "boot" (the board reboots every time the serial port
 	// is opened, and then there are 0.5 seconds taken by the bootloader)
@@ -84,35 +96,43 @@ bool SerialCommunication::openSerial(QString port, int baudRate)
 	return true;
 }
 
-void SerialCommunication::closeSerial()
+bool SerialCommunication::closeSerial()
 {
 	if (isStreaming()) {
-		throw SerialCommunicationException("Cannot close port while a sequence is being streamed");
+		qDebug() << "SerialCommunication error: cannot close port while a sequence is being streamed";
+		return false;
 	}
 
 	// Closing the port
 	if (m_serialPort.isOpen()) {
 		m_serialPort.close();
 		m_serialPort.clearError();
+
+		// Signalling that the port is closed
+		emit isConnectedChanged();
 	}
+
+	return true;
 }
 
-void SerialCommunication::startStream(Sequence* sequence, bool startFromCurrent)
+bool SerialCommunication::startStream(Sequence* sequence, bool startFromCurrent)
 {
 	if (!m_serialPort.isOpen()) {
-		throw SerialCommunicationException("Cannot start streaming with a closed serial port");
+		qDebug() << "SerialCommunication error: cannot start streaming with a closed serial port";
+		return false;
 	}
 	if (isStreaming()) {
-		throw SerialCommunicationException("Cannot start a new stream while a sequence is already being streamed");
+		qDebug() << "SerialCommunication error: cannot start a new stream while a sequence is already being streamed";
+		return false;
 	}
 
 	m_incomingData.clear();
 
 	// Resetting the pause flag and setting the m_is*Mode flags
 	m_paused = false;
-	m_isStreamMode = true;
-	m_isImmediateMode = false;
 	m_hardwareQueueFull = false;
+	setIsStreamMode(true);
+	setIsImmediateMode(false);
 
 	// Saving the sequence and resetting the current point if needed
 	m_sequence = sequence;
@@ -125,54 +145,66 @@ void SerialCommunication::startStream(Sequence* sequence, bool startFromCurrent)
 	if (!m_arduinoBoot.isActive()) {
 		arduinoBootFinished();
 	}
+
+	return true;
 }
 
-void SerialCommunication::pauseStream()
+bool SerialCommunication::pauseStream()
 {
 	if (!isStreamMode()) {
-		throw SerialCommunicationException("Cannot pause when no sequence is being streamed");
+		qDebug() << "SerialCommunication error: cannot pause when no sequence is being streamed";
+		return false;
+	}
+
+	if (m_paused) {
+		return false;
 	}
 
 	m_paused = true;
+
+	emit isPausedChanged();
+
+	return true;
 }
 
-void SerialCommunication::resumeStream()
+bool SerialCommunication::resumeStream()
 {
 	if (!isStreamMode()) {
-		throw SerialCommunicationException("Cannot pause when no sequence is being streamed");
+		qDebug() << "SerialCommunication error: cannot pause when no sequence is being streamed";
+		return false;
 	}
 
 	if (!m_paused) {
-		return;
+		return false;
 	}
 
 	// Resuming streaming
 	m_paused = false;
 
-	// Sending a sequence point if the hardware queue is not full
-	if (!m_hardwareQueueFull) {
-		sendData(createSequencePacketForPoint(m_sequence->point()));
+	emit isPausedChanged();
 
-		// Moving current point forward by one or terminating the sequence if the current point
-		// was the last point
-		incrementCurPoint();
-	}
+	// Processing all received packets
+	processReceivedPackets();
+
+	return true;
 }
 
-void SerialCommunication::startImmediate(Sequence* sequence)
+bool SerialCommunication::startImmediate(Sequence* sequence)
 {
 	if (!m_serialPort.isOpen()) {
-		throw SerialCommunicationException("Cannot start streaming with a closed serial port");
+		qDebug() << "SerialCommunication error: cannot start streaming with a closed serial port";
+		return false;
 	}
 	if (isStreaming()) {
-		throw SerialCommunicationException("Cannot start a new stream while a sequence is already being streamed");
+		qDebug() << "SerialCommunication error: cannot start a new stream while a sequence is already being streamed";
+		return false;
 	}
 
 	m_incomingData.clear();
 
 	// Setting the m_is*Mode flags
-	m_isStreamMode = false;
-	m_isImmediateMode = true;
+	setIsStreamMode(false);
+	setIsImmediateMode(true);
 
 	// Saving the sequence
 	m_sequence = sequence;
@@ -185,12 +217,15 @@ void SerialCommunication::startImmediate(Sequence* sequence)
 	if (!m_arduinoBoot.isActive()) {
 		arduinoBootFinished();
 	}
+
+	return true;
 }
 
-void SerialCommunication::stop()
+bool SerialCommunication::stop()
 {
 	if (!isStreaming()) {
-		throw SerialCommunicationException("No stream to stop");
+		qDebug() << "SerialCommunication error: no stream to stop";
+		return false;
 	}
 
 	// Sending packet to stop streaming
@@ -202,18 +237,15 @@ void SerialCommunication::stop()
 	// Setting the sequence to nullptr
 	m_sequence = nullptr;
 
-	// If we were in stream mode, emitting signal
-	if (isStreamMode()) {
-		emit streamStopped();
-	}
-
 	// Resetting flags
 	m_paused = false;
-	m_isStreamMode = false;
-	m_isImmediateMode = false;
 	m_hardwareQueueFull = false;
+	setIsStreamMode(false);
+	setIsImmediateMode(false);
 
 	m_incomingData.clear();
+
+	return true;
 }
 
 void SerialCommunication::handleReadyRead()
@@ -221,54 +253,8 @@ void SerialCommunication::handleReadyRead()
 	// Getting data and adding to the buffer
 	m_incomingData.append(m_serialPort.readAll());
 
-	// This flag is true if there is data in the m_incomingData buffer but the packet is
-	// not complete and we must wait for more data
-	bool partialPacket = false;
-	while (!(m_incomingData.isEmpty() || partialPacket)) {
-		// Taking the first characted, of data, it tells us the kind of packet we received
-		if (isStreamMode() && (m_incomingData[0] == 'N')) {
-			// Buffer not full, we can send the current point in the sequence and move the current point forward
-			m_hardwareQueueFull = false;
-			sendData(createSequencePacketForPoint(m_sequence->point()));
-			incrementCurPoint();
-
-			// Removing packet from our buffer
-			m_incomingData.remove(0, 1);
-		} else if (isStreamMode() && (m_incomingData[0] == 'F')) {
-			// Buffer full
-			m_hardwareQueueFull = true;
-
-			// Removing packet from our buffer
-			m_incomingData.remove(0, 1);
-		} else if (m_incomingData[0] == 'D') {
-			// Debug packet, printing and emitting signal if the message is complete
-			if (m_incomingData.size() < 2) {
-				partialPacket = true;
-			} else {
-				// Reading message length
-				int msgLength = static_cast<unsigned char>(m_incomingData[1]);
-
-				// Checking we have the whole message
-				if (m_incomingData.size() < (2 + msgLength)) {
-					partialPacket = true;
-				} else {
-					// We have the whole message, putting in a QString
-					const QString msg(m_incomingData.mid(2, msgLength));
-
-					// Emitting signal and printing
-					emit debugMessage(msg);
-					qDebug() << "Debug packet, content:" << msg;
-				}
-			}
-		} else {
-			const QString errorString = QString("Received unknown or invalid packet type %1 (ascii %2)").arg(static_cast<unsigned int>(m_incomingData[0])).arg(m_incomingData[0]);
-			emit streamError(errorString);
-			qDebug() << errorString;
-
-			// Removing the unknown character
-			m_incomingData.remove(0, 1);
-		}
-	}
+	// Processing received data
+	processReceivedPackets();
 }
 
 void SerialCommunication::handleError(QSerialPort::SerialPortError error)
@@ -348,10 +334,8 @@ void SerialCommunication::arduinoBootFinished()
 		// Now sending the first sequence packet
 		sendData(createSequencePacketForPoint(m_sequence->point()));
 
-		// If we are in stream mode, we have to emit the signal and move the current point forward
+		// If we are in stream mode, we have to move the current point forward
 		if (isStreamMode()) {
-			emit streamStarted();
-
 			incrementCurPoint();
 		}
 	}
@@ -393,6 +377,63 @@ QByteArray SerialCommunication::createSequencePacketForPoint(const SequencePoint
 	return pkt;
 }
 
+void SerialCommunication::processReceivedPackets()
+{
+	// This flag is true if there is data in the m_incomingData buffer but the packet is
+	// not complete and we must wait for more data
+	bool stopProcessing = false;
+	while (!(m_incomingData.isEmpty() || stopProcessing)) {
+		// Taking the first characted, of data, it tells us the kind of packet we received
+		if (isStreamMode()) {
+			if (m_paused) {
+				// We are paused, not processing incoming data
+				stopProcessing = true;
+			} else if (m_incomingData[0] == 'N') {
+				// Buffer not full, we can send the current point in the sequence and move the current point forward
+				m_hardwareQueueFull = false;
+				sendData(createSequencePacketForPoint(m_sequence->point()));
+				incrementCurPoint();
+
+				// Removing packet from our buffer
+				m_incomingData.remove(0, 1);
+			} else if (m_incomingData[0] == 'F') {
+				// Buffer full
+				m_hardwareQueueFull = true;
+
+				// Removing packet from our buffer
+				m_incomingData.remove(0, 1);
+			}
+		} else if (m_incomingData[0] == 'D') {
+			// Debug packet, printing and emitting signal if the message is complete
+			if (m_incomingData.size() < 2) {
+				stopProcessing = true;
+			} else {
+				// Reading message length
+				int msgLength = static_cast<unsigned char>(m_incomingData[1]);
+
+				// Checking we have the whole message
+				if (m_incomingData.size() < (2 + msgLength)) {
+					stopProcessing = true;
+				} else {
+					// We have the whole message, putting in a QString
+					const QString msg(m_incomingData.mid(2, msgLength));
+
+					// Emitting signal and printing
+					emit debugMessage(msg);
+					qDebug() << "Debug packet, content:" << msg;
+				}
+			}
+		} else {
+			const QString errorString = QString("Received unknown or invalid packet type %1 (ascii %2)").arg(static_cast<unsigned int>(m_incomingData[0])).arg(m_incomingData[0]);
+			emit streamError(errorString);
+			qDebug() << errorString;
+
+			// Removing the unknown character
+			m_incomingData.remove(0, 1);
+		}
+	}
+}
+
 void SerialCommunication::incrementCurPoint()
 {
 	const int curPoint = m_sequence->curPoint();
@@ -414,5 +455,23 @@ void SerialCommunication::sendData(const QByteArray& dataToSend)
 		qDebug() << "Error writing data";
 	} else if (bytesWritten != dataToSend.size()) {
 		qDebug() << "Cannot write all data";
+	}
+}
+
+void SerialCommunication::setIsStreamMode(bool v)
+{
+	if (v != m_isStreamMode) {
+		m_isStreamMode = v;
+
+		emit isStreamModeChanged();
+	}
+}
+
+void SerialCommunication::setIsImmediateMode(bool v)
+{
+	if (v != m_isImmediateMode) {
+		m_isImmediateMode = v;
+
+		emit isImmediateModeChanged();
 	}
 }

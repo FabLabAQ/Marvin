@@ -32,6 +32,7 @@ namespace {
 Sequencer::Sequencer(QObject *parent)
 	: QObject(parent)
 	, m_sequence(std::make_unique<Sequence>(3, minPoint, maxPoint))
+	, m_serialCommunication(std::make_unique<SerialCommunication>())
 {
 }
 

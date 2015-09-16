@@ -24,6 +24,7 @@
 #include <QObject>
 #include "utils.h"
 #include "sequence.h"
+#include "serialcommunication.h"
 
 /**
  * \brief The class implementing a command sequencer
@@ -37,6 +38,7 @@ class Sequencer : public QObject
 {
 	Q_OBJECT
 	Q_PROPERTY(Sequence* sequence READ sequence NOTIFY sequenceChanged)
+	Q_PROPERTY(SerialCommunication* serialCommunication READ serialCommunication NOTIFY serialCommunicationChanged)
 
 public:
 	explicit Sequencer(QObject *parent = 0);
@@ -46,8 +48,14 @@ public:
 		return m_sequence.get();
 	}
 
+	SerialCommunication* serialCommunication()
+	{
+		return m_serialCommunication.get();
+	}
+
 signals:
 	void sequenceChanged();
+	void serialCommunicationChanged();
 
 public slots:
 	void newSequence();
@@ -57,6 +65,7 @@ public slots:
 
 private:
 	std::unique_ptr<Sequence> m_sequence;
+	std::unique_ptr<SerialCommunication> m_serialCommunication;
 };
 
 #endif // SEQUENCER_H

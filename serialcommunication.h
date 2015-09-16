@@ -25,103 +25,8 @@
 #include <QByteArray>
 #include <QObject>
 #include <QTimer>
-#include <exception>
 #include <memory>
 #include "sequence.h"
-
-/**
- * \brief The exception thrown by the SerialCommunication class
- */
-class SerialCommunicationException : public std::exception
-{
-public:
-	/**
-	 * \brief Constructor
-	 *
-	 * \param reason a description of the exception. The buffer for this is
-	 *               at most 256 characters (including the '\0' terminator)
-	 */
-	SerialCommunicationException(const char* reason) throw() :
-		std::exception()
-	{
-		strncpy(m_reason, reason, 256);
-		m_reason[255] = '\0';
-		sprintf(m_errorMessage, "Serial communication exception, reason: %s", m_reason);
-		m_errorMessage[511] = '\0';
-	}
-
-	/**
-	 * \brief Copy constructor
-	 *
-	 * \param other the exception to copy
-	 */
-	SerialCommunicationException(const SerialCommunicationException& other) throw() :
-		std::exception(other)
-	{
-		strncpy(m_reason, other.m_reason, 256);
-		m_reason[255] = '\0';
-		strncpy(m_errorMessage, other.m_errorMessage, 512);
-		m_errorMessage[511] = '\0';
-	}
-
-	/**
-	 * \brief Copy operator
-	 *
-	 * \param other the exception to copy
-	 */
-	SerialCommunicationException& operator=(const SerialCommunicationException& other) throw()
-	{
-		if (&other == this) {
-			return *this;
-		}
-
-		std::exception::operator=(other);
-		strncpy(m_reason, other.m_reason, 256);
-		m_reason[255] = '\0';
-		strncpy(m_errorMessage, other.m_errorMessage, 512);
-		m_errorMessage[511] = '\0';
-
-		return *this;
-	}
-
-	/**
-	 * \brief Destructor
-	 */
-	virtual ~SerialCommunicationException() throw()
-	{
-	}
-
-	/**
-	 * \brief Returns a C string describing the exception
-	 *
-	 * \return a C string describing the exception
-	 */
-	virtual const char *what() const throw()
-	{
-		return m_errorMessage;
-	}
-
-	/**
-	 * \brief Returns the reason why the exception was thrown
-	 *
-	 * \return the reason why the exception was thrown
-	 */
-	const char *reason() const throw()
-	{
-		return m_reason;
-	}
-
-private:
-	/**
-	 * \brief The reason why the exception was thrown
-	 */
-	char m_reason[256];
-
-	/**
-	 * \brief The message describing the error
-	 */
-	char m_errorMessage[512];
-};
 
 /**
  * \brief The class handling the communication with Arduino through the serial
@@ -142,10 +47,9 @@ private:
  * starts the immediate modality, which terminates when all points have been
  * streamed or when the stop() function is called. In either cases the
  * streamStopped() signal is emitted. When in one modality it is not possible to
- * call a function of the other modality (an exception of type
- * SerialCommunicationException is thrown if this is attempted). An exception is
- * also thrown when functions of one modality are called before the modality is
- * started or when the serial port is not open.
+ * call a function of the other modality (functions will return false). It is
+ * also an error when functions of one modality are called before the modality
+ * is started or when the serial port is not open.
  *
  * The communication protocol between this program and the Arduino board is the
  * following. The packets the PC may send to the hardware are the following
@@ -213,6 +117,13 @@ private:
 class SerialCommunication : public QObject
 {
 	Q_OBJECT
+	Q_PROPERTY(QString serialPortName READ serialPortName WRITE setSerialPortName NOTIFY serialPortNameChanged)
+	Q_PROPERTY(int baudRate READ baudRate WRITE setBaudRate NOTIFY baudRateChanged)
+	Q_PROPERTY(bool isConnected READ isConnected NOTIFY isConnectedChanged)
+	Q_PROPERTY(bool isStreaming READ isStreaming NOTIFY isStreamingChanged)
+	Q_PROPERTY(bool isStreamMode READ isStreamMode NOTIFY isStreamModeChanged)
+	Q_PROPERTY(bool isImmediateMode READ isImmediateMode NOTIFY isImmediateModeChanged)
+	Q_PROPERTY(bool isPaused READ isPaused NOTIFY isPausedChanged)
 
 public:
 	/**
@@ -254,74 +165,117 @@ public:
 	SerialCommunication& operator=(SerialCommunication&& other) = delete;
 
 	/**
+	 * \brief Returns the name of the serial port to open
+	 *
+	 * \return the name of the serial port to open
+	 */
+	QString serialPortName() const
+	{
+		return m_serialPortName;
+	}
+
+	/**
+	 * \brief Sets the name of the serial port to open
+	 *
+	 * \param serialPortName the name of the serial port to open
+	 */
+	void setSerialPortName(QString serialPortName);
+
+	/**
+	 * \brief Returns the baud rate
+	 *
+	 * \return the baud rate
+	 */
+	int baudRate() const
+	{
+		return m_baudRate;
+	}
+
+	/**
+	 * \brief Sets the baud rate
+	 *
+	 * \param baudRate the new baud rate
+	 */
+	void setBaudRate(int baudRate);
+
+	/**
 	 * \brief Opens the serial port
 	 *
 	 * If a port was already opened, closes it before opening the new one.
-	 * If however a sequence is being sent, throws an exception.
-	 * \param port the port to open
-	 * \param baudRate the baudrate
 	 * \return false in case of error, true if the port was opened
 	 *         successfully
 	 */
-	bool openSerial(QString port, int baudRate);
+	Q_INVOKABLE bool openSerial();
 
 	/**
 	 * \brief Closes the serial port
 	 *
 	 * This cannot be called if a stream is being sent (call stop(),
 	 * before). If the stream is already closed, this does nothing
+	 * \return false in case of error
 	 */
-	void closeSerial();
+	Q_INVOKABLE bool closeSerial();
 
 	/**
 	 * \brief Starts streaming the sequence
 	 *
-	 * This throws an exception in case of errors. The sequence current
-	 * point is updated as data is streamed (the current point will be the
-	 * next point to sent through the port). If the current point is changed
-	 * externally, the next point that is sent sequence will be the new
-	 * current point.
+	 * The sequence current point is updated as data is streamed (the
+	 * current point will be the next point to sent through the port). If
+	 * the current point is changed externally, the next point that is sent
+	 * sequence will be the new current point.
 	 * \param sequence the sequence to send. It must remain valid until the
 	 *                 stop() function is called or the sequence is finished
 	 * \param startFromCurrent if true the streaming starts from the current
 	 *                         point, otherwise starts from the beginning
+	 * \return false in case of error
 	 */
-	void startStream(Sequence* sequence, bool startFromCurrent = false);
+	Q_INVOKABLE bool startStream(Sequence* sequence, bool startFromCurrent = false);
 
 	/**
 	 * \brief Pauses streaming data
 	 *
-	 * This throws an exception in case of errors. This simply temporarily
-	 * stops sending data. To restart and continue from the point where
-	 * sending was interrupted, call resumeStream()
+	 * This simply temporarily stops sending data. To restart and continue
+	 * from the point where sending was interrupted, call resumeStream()
+	 * \return false in case of error
 	 */
-	void pauseStream();
+	Q_INVOKABLE bool pauseStream();
 
 	/**
 	 * \brief Resumes a paused stream
 	 *
-	 * This throws an exception in case of errors, but it the stream is
-	 * simply not paused, nothing happends. See the description of the
-	 * pauseStream() function for more information
+	 * If the stream is simply not paused, nothing happends. See the
+	 * description of the pauseStream() function for more information
+	 * \return false in case of error
 	 */
-	void resumeStream();
+	Q_INVOKABLE bool resumeStream();
 
 	/**
 	 * \brief Starts sending the sequence in immediate mode
 	 *
-	 * This throws an exception in case of errors. Every time the current
-	 * point changes, a sequence is send through the port.
+	 * Every time the current point changes, a sequence is send through the
+	 * port.
 	 * \param sequence the sequence to send. It must remain valid until the
 	 *                 stop() function is called
+	 * \return false in case of error
 	 */
-	void startImmediate(Sequence* sequence);
+	Q_INVOKABLE bool startImmediate(Sequence* sequence);
 
 	/**
 	 * \brief Stops sending the sequence
 	 *
-	 * This throws an exception in case of errors
+	 * \return false in case of error
 	 */
-	void stop();
+	Q_INVOKABLE bool stop();
+
+	/**
+	 * \brief Return true if the serial port is open
+	 *
+	 * \return true if the serial port is open
+	 */
+	bool isConnected() const
+	{
+		return m_serialPort.isOpen();
+	}
 
 	/**
 	 * \brief Returns true if we have an associated stream, either in stream
@@ -355,17 +309,51 @@ public:
 		return m_isImmediateMode;
 	}
 
+	/**
+	 * \brief Returns true if streaming is paused
+	 *
+	 * \return true if streaming is paused
+	 */
+	bool isPaused() const
+	{
+		return m_paused;
+	}
+
 signals:
 	/**
-	 * \brief The signal emitted when starting streaming in stream mode
+	 * \brief The signal emitted when the serial port name changes
 	 */
-	void streamStarted();
+	void serialPortNameChanged();
 
 	/**
-	 * \brief The signal emitted when the sequence streamed in stream mode
-	 *        is completed
+	 * \brief The signal emitted when the baud rate changes
 	 */
-	void streamStopped();
+	void baudRateChanged();
+
+	/**
+	 * \brief The signal emitted when the serial port is opened/closed
+	 */
+	void isConnectedChanged();
+
+	/**
+	 * \brief The signal emitted when the isStreaming property changes
+	 */
+	void isStreamingChanged();
+
+	/**
+	 * \brief The signal emitted when the isStreamMode property changes
+	 */
+	void isStreamModeChanged();
+
+	/**
+	 * \brief The signal emitted when the isImmediateMode property changes
+	 */
+	void isImmediateModeChanged();
+
+	/**
+	 * \brief The signal emitted when streaming is paused/resumed
+	 */
+	void isPausedChanged();
 
 	/**
 	 * \brief The signal emitted if there is an error writing or reading
@@ -430,6 +418,11 @@ private:
 	QByteArray createSequencePacketForPoint(const SequencePoint& p) const;
 
 	/**
+	 * \brief Processes received packets
+	 */
+	void processReceivedPackets();
+
+	/**
 	 * \brief Moves the current point forward
 	 *
 	 * This function moves the current point forward by one. If we reach the
@@ -443,6 +436,32 @@ private:
 	 * \param dataToSend the data to send through the serial port
 	 */
 	void sendData(const QByteArray& dataToSend);
+
+	/**
+	 * \brief Changes the value of the m_isStreamMode flag and emits the
+	 *        changed signal if needed
+	 *
+	 * \param v the new value of the flag
+	 */
+	void setIsStreamMode(bool v);
+
+	/**
+	 * \brief Changes the value of the m_isImmediateMode flag and emits the
+	 *        changed signal if needed
+	 *
+	 * \param v the new value of the flag
+	 */
+	void setIsImmediateMode(bool v);
+
+	/**
+	 * \brief The name of the serial port to open
+	 */
+	QString m_serialPortName;
+
+	/**
+	 * \brief The baud rate of the serial port
+	 */
+	int m_baudRate;
 
 	/**
 	 * \brief The serial communication port

@@ -32,15 +32,64 @@ import QtQuick.Window 2.0
 import QtQuick.Dialogs 1.1
 import QtQuick.Layouts 1.1
 
-// A window to set configuration parameters
+// A window to set configuration parameters. Parameters are changed as they are
+// edited, not when the window is closed
 Window {
 	id: mainItem
 
 	flags: Qt.Dialog
 	modality: Qt.ApplicationModal
 
-	Text {
-		text: "Config dialog"
+	ColumnLayout {
+		anchors.fill: parent
+
+		GridLayout {
+			columns: 2
+			Layout.fillHeight: true
+			enabled: !serialCommunication.isStreaming
+
+			Text {
+				text: "Serial port:"
+			}
+
+			// This is the field to set the serial port name
+			TextField {
+				id: portField
+				Layout.fillWidth: true
+
+				text: serialCommunication.serialPortName
+
+				onTextChanged: serialCommunication.serialPortName = text;
+			}
+
+			Text {
+				text: "Baud Rate:"
+			}
+
+			// This is the field to set the baud rate
+			TextField {
+				id: baudRateField
+				Layout.fillWidth: true
+
+				validator: IntValidator {
+					bottom: 0
+					top: 1000000
+				}
+
+				text: serialCommunication.baudRate;
+
+				onTextChanged: serialCommunication.baudRate = parseFloat(text)
+			}
+		}
+
+		Button {
+			id: closeButton
+			Layout.alignment: Qt.AlignRight
+
+			text: "Close"
+
+			onClicked: mainItem.close();
+		}
 	}
 }
 

@@ -41,44 +41,104 @@ Item {
 
 		Button {
 			text: "Play sequence from start"
+			enabled: serialCommunication.isConnected && (!serialCommunication.isStreaming)
 
 			Layout.fillWidth: true
+
+			onClicked: serialCommunication.startStream(sequence, false);
 		}
 
 		Button {
 			text: "Play sequence from current step"
+			enabled: serialCommunication.isConnected && (!serialCommunication.isStreaming)
 
 			Layout.fillWidth: true
+
+			onClicked: serialCommunication.startStream(sequence, true);
 		}
 
 		Button {
-			text: "Pause"
+			text: serialCommunication.isPaused ? "Resume" : "Pause"
+			enabled: serialCommunication.isStreamMode
 
 			Layout.fillWidth: true
+
+			onClicked: {
+				if (serialCommunication.isPaused) {
+					serialCommunication.pauseStream();
+				} else {
+					serialCommunication.resumeStream();
+				}
+			}
 		}
 
 		Button {
 			text: "Stop"
+			enabled: serialCommunication.isStreamMode
 
 			Layout.fillWidth: true
+
+			onClicked: serialCommunication.stop()
 		}
 
 		CheckBox {
 			text: "Immediate mode"
+			enabled: serialCommunication.isConnected && (!serialCommunication.isStreamMode)
 
 			Layout.fillWidth: true
+
+			onCheckedChanged: {
+				if (checked) {
+					serialCommunication.startImmediate(sequence);
+				} else {
+					serialCommunication.stop();
+				}
+			}
 		}
 
 		Button {
-			text: "Connect/Disconnect"
+			text: serialCommunication.isConnected ? "Disconnect" : "Connect"
+			enabled: !serialCommunication.isStreaming
 
 			Layout.fillWidth: true
+
+			onClicked: {
+				if (serialCommunication.isConnected) {
+					serialCommunication.closeSerial();
+				} else {
+					serialCommunication.openSerial();
+				}
+			}
 		}
 
 		Text {
-			text: "Status"
+			text: "No error"
 
 			Layout.fillWidth: true
+
+			Component.onCompleted: {
+				serialCommunication.streamError.connect(writeErrorMessage)
+			}
+
+			function writeErrorMessage(message)
+			{
+				text = "Last error: " + message
+			}
+		}
+
+		Text {
+			text: "No debug message"
+
+			Layout.fillWidth: true
+
+			Component.onCompleted: {
+				serialCommunication.debugMessage.connect(writeDebugMessage)
+			}
+
+			function writeDebugMessage(message)
+			{
+				text = "Debug message: " + message
+			}
 		}
 	}
 }
