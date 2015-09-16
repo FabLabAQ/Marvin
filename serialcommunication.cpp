@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include "serialcommunication.h"
+#include <QDebug>
 
 SerialCommunication::SerialCommunication(QObject* parent)
 	: QObject(parent)
@@ -33,7 +34,7 @@ SerialCommunication::SerialCommunication(QObject* parent)
 {
 	// Connecting signals from the serial port
 	connect(&m_serialPort, &QSerialPort::readyRead, this, &SerialCommunication::handleReadyRead);
-	connect(&m_serialPort, &QSerialPort::error, this, &SerialCommunication::handleError);
+	connect(&m_serialPort, static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error), this, &SerialCommunication::handleError);
 
 	// Connecting the signal for the Arduino boot timer. Also setting the timer to be singleShot
 	m_arduinoBoot.setSingleShot(true);
@@ -73,12 +74,14 @@ bool SerialCommunication::openSerial(QString port, int baudRate)
 
 	// Trying to open the port
 	if (!m_serialPort.open(QIODevice::ReadWrite)) {
-		throw SerialCommunicationException(QString("Cannot open port %1").arg(port).toLatin1().data());
+		return false;
 	}
 
 	// This is necessary to give time to Arduino to "boot" (the board reboots every time the serial port
 	// is opened, and then there are 0.5 seconds taken by the bootloader)
 	m_arduinoBoot.start(1000);
+
+	return true;
 }
 
 void SerialCommunication::closeSerial()
@@ -103,11 +106,13 @@ void SerialCommunication::startStream(Sequence* sequence, bool startFromCurrent)
 		throw SerialCommunicationException("Cannot start a new stream while a sequence is already being streamed");
 	}
 
+	m_incomingData.clear();
+
 	// Resetting the pause flag and setting the m_is*Mode flags
 	m_paused = false;
 	m_isStreamMode = true;
 	m_isImmediateMode = false;
-	m_hardwareQueueFull = false
+	m_hardwareQueueFull = false;
 
 	// Saving the sequence and resetting the current point if needed
 	m_sequence = sequence;
@@ -163,6 +168,8 @@ void SerialCommunication::startImmediate(Sequence* sequence)
 		throw SerialCommunicationException("Cannot start a new stream while a sequence is already being streamed");
 	}
 
+	m_incomingData.clear();
+
 	// Setting the m_is*Mode flags
 	m_isStreamMode = false;
 	m_isImmediateMode = true;
@@ -186,6 +193,9 @@ void SerialCommunication::stop()
 		throw SerialCommunicationException("No stream to stop");
 	}
 
+	// Sending packet to stop streaming
+	sendData(QByteArray("H"));
+
 	// Disconnecting all signals from the sequence to us
 	m_sequence->disconnect(this);
 
@@ -202,149 +212,61 @@ void SerialCommunication::stop()
 	m_isStreamMode = false;
 	m_isImmediateMode = false;
 	m_hardwareQueueFull = false;
+
+	m_incomingData.clear();
 }
 
 void SerialCommunication::handleReadyRead()
 {
-	* \brief The slot called when there is data ready to be read
+	// Getting data and adding to the buffer
+	m_incomingData.append(m_serialPort.readAll());
 
-	/**
-	 * \brief The signal emitted when the sequence streamed in stream mode
-	 *        is completed
-	 */
-	void streamStopped()
+	// This flag is true if there is data in the m_incomingData buffer but the packet is
+	// not complete and we must wait for more data
+	bool partialPacket = false;
+	while (!(m_incomingData.isEmpty() || partialPacket)) {
+		// Taking the first characted, of data, it tells us the kind of packet we received
+		if (isStreamMode() && (m_incomingData[0] == 'N')) {
+			// Buffer not full, we can send the current point in the sequence and move the current point forward
+			m_hardwareQueueFull = false;
+			sendData(createSequencePacketForPoint(m_sequence->point()));
+			incrementCurPoint();
 
-			se queue full, mettere m_hardwareQueueFull a true, altrimenti a false
-}
+			// Removing packet from our buffer
+			m_incomingData.remove(0, 1);
+		} else if (isStreamMode() && (m_incomingData[0] == 'F')) {
+			// Buffer full
+			m_hardwareQueueFull = true;
 
-void SerialCommunication::handleError(QSerialPort::SerialPortError error)
-{
-	 * \brief The function called when there is an error in the serial
-	 *        communication
-	 *
-	 * \param error the error code
+			// Removing packet from our buffer
+			m_incomingData.remove(0, 1);
+		} else if (m_incomingData[0] == 'D') {
+			// Debug packet, printing and emitting signal if the message is complete
+			if (m_incomingData.size() < 2) {
+				partialPacket = true;
+			} else {
+				// Reading message length
+				int msgLength = static_cast<unsigned char>(m_incomingData[1]);
 
-			void streamError(QString error);
-}
+				// Checking we have the whole message
+				if (m_incomingData.size() < (2 + msgLength)) {
+					partialPacket = true;
+				} else {
+					// We have the whole message, putting in a QString
+					const QString msg(m_incomingData.mid(2, msgLength));
 
-void SerialCommunication::arduinoBootFinished()
-{
-	* \brief The slot called a second after the serial port is opened to
-	*        start sending data
-	*
-	* This is needed to give Arduino time to boot. This function is also
-	* called if a sequence is started after arduino has booted. Basically
-	* this function automatically sends data if called from the timer and
-	* streaming has already been requested. If called from the timer but
-	* streaming hasn't been requested yet, it does nothing. When streaming
-	* is requested, this function is called by either startStream() or
-	* startImmediate() and starts sending data.
-
-			/**
-			 * \brief The signal emitted when starting streaming in stream mode
-			 */
-			void streamStarted();
-}
-
-void SerialCommunication::curPointChanged()
-{
-	* \brief The slot called when the current point in the sequence changes
-}
-
-QByteArray SerialCommunication::createSequencePacketForPoint(const SequencePoint& p) const
-{
-	* \brief Returns a sequence packet for the given point
-	*
-	* This function doesn't check that p has the length that was used in
-	* the start stream or start immediate package, ensure this externally
-	* (this condition is fulfilled if the same sequence is used for the
-	* start and this function, as it should be)
-	* \param p the point for which to create a packet
-	* \return the packet for the point
-}
-
-void SerialCommunication::incrementCurPoint()
-{
-	* \brief Moves the current point forward
-	*
-	* This function moves the current point forward by one. If we reach the
-	* end of the sequence in stream mode, terminates the streaming (calling should be enough stop()).
-}
-
-void SerialCommunication::sendData(const QByteArray& dataToSend)
-{
-	 * \brief The function that actually sends data
-	 *
-	 * \param dataToSend the data to send through the serial port
-	gsdfgsdfgdf
-
-			void streamError(QString error);
-}
-
-
-
-
-
-
-
-
-DA WHAC-A-MAKER
-
-
-
-
-
-void SerialCommunication::sendCommand()
-{
-	// Adding the final endline if is not there already
-	if ((m_commandPartsToSend.size() != 0) && (!m_commandPartsToSend.endsWith('\n'))) {
-		m_commandPartsToSend.append('\n');
-	}
-
-	if (m_arduinoBoot.isActive()) {
-		// We cannot send the command yet, we have to wait for the boot procedure to finish
-		m_preBootCommands.append(m_commandPartsToSend);
-	} else {
-		sendData(m_commandPartsToSend);
-	}
-}
-
-void SerialCommunication::handleReadyRead()
-{
-	// Getting data
-	QByteArray newData = m_serialPort.readAll();
-
-	// Adding data to the buffer. We have to save the previous size of m_incomingData to
-	// have the correct m_endCommandPosition
-	const int oldSize = m_incomingData.size();
-	m_incomingData.append(newData);
-
-	// Now looking in new data for the first '\n' and the number of them
-	int firstNewlinePos = -1;
-	int numNewlines = 0;
-	for (int i = 0; i < newData.size(); i++) {
-		if (newData[i] == '\n') {
-			if (firstNewlinePos == -1) {
-				firstNewlinePos = i + oldSize;
+					// Emitting signal and printing
+					emit debugMessage(msg);
+					qDebug() << "Debug packet, content:" << msg;
+				}
 			}
-			++numNewlines;
-		}
-	}
+		} else {
+			const QString errorString = QString("Received unknown or invalid packet type %1 (ascii %2)").arg(static_cast<unsigned int>(m_incomingData[0])).arg(m_incomingData[0]);
+			emit streamError(errorString);
+			qDebug() << errorString;
 
-// std::cerr << "===handleReadyRead=== new data: \"" << newData.data() << "\", oldSize: " << oldSize << ", firstNewlinePos: " << firstNewlinePos << ", numNewlines: " << numNewlines << ", m_endCommandPosition: " << m_endCommandPosition << ", all data: \"" << m_incomingData.data() << "\"" << std::endl;
-
-	// If there was at least one '\n' in the new data, checking what to do
-	if (numNewlines != 0) {
-		// If there was no command in the queue, saving the position of the '\n' of the first
-		// command (which is the first one)
-		if (m_endCommandPosition == -1) {
-			m_endCommandPosition = firstNewlinePos;
-		}
-
-		// Now telling the controller we have received commands. We call commandReceived() once for each
-		// received command
-		for (int i = 0; i < numNewlines; i++) {
-			m_controller->commandReceived();
+			// Removing the unknown character
+			m_incomingData.remove(0, 1);
 		}
 	}
 }
@@ -352,17 +274,135 @@ void SerialCommunication::handleReadyRead()
 void SerialCommunication::handleError(QSerialPort::SerialPortError error)
 {
 	if (error != QSerialPort::NoError) {
-		std::cerr << "Serial Communication error, code: " << error << std::endl;
+		const QString errorString = "Error streaming: " + m_serialPort.errorString();
+		emit streamError(errorString);
+		qDebug() << errorString;
+
+//		QString errorString = "Error streaming, error code: ";
+
+//		switch (error) {
+//			case QSerialPort::DeviceNotFoundError:
+//				errorString += "DeviceNotFoundError (an error occurred while attempting to open an non-existing device)";
+//				break;
+//			case QSerialPort::PermissionError:
+//				errorString += "PermissionError (an error occurred while attempting to open an already opened device by another process or a user not having enough permission and credentials to open)";
+//				break;
+//			case QSerialPort::OpenError:
+//				errorString += "OpenError (an error occurred while attempting to open an already opened device in this object)";
+//				break;
+//			case QSerialPort::NotOpenError:
+//				errorString += "NotOpenError (this error occurs when an operation is executed that can only be successfully performed if the device is open)";
+//				break;
+//			case QSerialPort::ParityError:
+//				errorString += "ParityError (parity error detected by the hardware while reading data)";
+//				break;
+//			case QSerialPort::FramingError:
+//				errorString += "FramingError (framing error detected by the hardware while reading data)";
+//				break;
+//			case QSerialPort::BreakConditionError:
+//				errorString += "BreakConditionError (break condition detected by the hardware on the input line)";
+//				break;
+//			case QSerialPort::WriteError:
+//				errorString += "WriteError (an I/O error occurred while writing the data)";
+//				break;
+//			case QSerialPort::ReadError:
+//				errorString += "ReadError (an I/O error occurred while reading the data)";
+//				break;
+//			case QSerialPort::ResourceError:
+//				errorString += "ResourceError (an I/O error occurred when a resource becomes unavailable, e.g. when the device is unexpectedly removed from the system)";
+//				break;
+//			case QSerialPort::UnsupportedOperationError:
+//				errorString += "UnsupportedOperationError (the requested device operation is not supported or prohibited by the running operating system)";
+//				break;
+//			case QSerialPort::TimeoutError:
+//				errorString += "TimeoutError (a timeout error occurred)";
+//				break;
+//			case QSerialPort::UnknownError:
+//			default:
+//				errorString += "UnknownError (an unidentified error occurred)";
+//				break;
+//		}
+
+//		emit streamError(errorString);
+//		qDebug() << "Serial error." << errorString;
 	}
 }
 
 void SerialCommunication::arduinoBootFinished()
 {
-	// Sending all queued command and clearing the queue
-	for (int i = 0; i < m_preBootCommands.size(); i++) {
-		sendData(m_preBootCommands[i]);
+	// If we are streaming, sending data, otherwise doing nothing
+	if (isStreaming()) {
+		// First sending the start packet
+		QByteArray startPacket;
+		if (isStreamMode()) {
+			startPacket.append('S');
+		} else if (isImmediateMode()) {
+			startPacket.append('I');
+		} else {
+			qFatal("Unknown mode, we should never get here");
+		}
+		// Adding the number of dimension of point to the start packet
+		startPacket.append(m_sequence->pointDim() && 0xFF);
+		sendData(startPacket);
+
+		// Now sending the first sequence packet
+		sendData(createSequencePacketForPoint(m_sequence->point()));
+
+		// If we are in stream mode, we have to emit the signal and move the current point forward
+		if (isStreamMode()) {
+			emit streamStarted();
+
+			incrementCurPoint();
+		}
 	}
-	m_preBootCommands.clear();
+}
+
+void SerialCommunication::curPointChanged()
+{
+	// Safety check that we are in immediate mode (this slot is only connected in immediate mode)
+	if (Q_UNLIKELY(!isImmediateMode())) {
+		qDebug() << "Received curPointChanged() signal but not in immediate mode";
+
+		return;
+	}
+
+	// Sending the current point
+	sendData(createSequencePacketForPoint(m_sequence->point()));
+}
+
+QByteArray SerialCommunication::createSequencePacketForPoint(const SequencePoint& p) const
+{
+	QByteArray pkt(5 + p.point.size(), 0);
+
+	// Packet type
+	pkt[0] = 'P';
+
+	// Point duration
+	pkt[1] = (p.duration >> 8) && 0xFF;
+	pkt[2] = p.duration & 0xFF;
+
+	// Point time to target
+	pkt[3] = (p.timeToTarget >> 8) && 0xFF;
+	pkt[4] = p.timeToTarget & 0xFF;
+
+	// Values
+	for (int c = 0; c < p.point.size(); ++c) {
+		pkt[5 + c] = static_cast<unsigned int>(p.point[c]) & 0xFF;
+	}
+
+	return pkt;
+}
+
+void SerialCommunication::incrementCurPoint()
+{
+	const int curPoint = m_sequence->curPoint();
+
+	if (curPoint == (m_sequence->numPoints() - 1)) {
+		// We are at the last point, stopping
+		stop();
+	} else {
+		m_sequence->setCurPoint(curPoint + 1);
+	}
 }
 
 void SerialCommunication::sendData(const QByteArray& dataToSend)
@@ -370,11 +410,9 @@ void SerialCommunication::sendData(const QByteArray& dataToSend)
 	// Writing data
 	qint64 bytesWritten = m_serialPort.write(dataToSend);
 
-// std::cerr << "Command sent: " << dataToSend.data() << std::endl;
-
 	if (bytesWritten == -1) {
-		std::cerr  << "Error writing data, error: " << m_serialPort.errorString().toLatin1().data() << std::endl;
+		qDebug() << "Error writing data";
 	} else if (bytesWritten != dataToSend.size()) {
-		std::cerr  << "Cannot write all data, error: " << m_serialPort.errorString().toLatin1().data() << std::endl;
+		qDebug() << "Cannot write all data";
 	}
 }

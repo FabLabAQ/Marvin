@@ -32,11 +32,15 @@ import QtQuick.Window 2.0
 import QtQuick.Dialogs 1.1
 import QtQuick.Layouts 1.1
 
-questa renderla una finestra modale, per il momento l unica opzione è la porta (poi andrebbe messo anche il numero di servi e i limiti)
-Rectangle {
-	width: 100
-	height: 62
+// A window to set configuration parameters
+Window {
+	id: mainItem
 
+	flags: Qt.Dialog
+	modality: Qt.ApplicationModal
 
+	Text {
+		text: "Config dialog"
+	}
 }
 

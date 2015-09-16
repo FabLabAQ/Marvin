@@ -24,14 +24,16 @@
 #include <QtQml>
 #include "sequencer.h"
 #include "sequence.h"
+#include "serialcommunication.h"
 
 int main(int argc, char *argv[])
 {
 	QApplication app(argc, argv);
 
-	// Registering the Sequence type to QML. It is not possible to create
-	// this type directly from QML (but we don't need to)
+	// Registering the Sequence and SerialCommunication types to QML. It is not possible to create
+	// these types directly from QML (but we don't need to)
 	qmlRegisterType<Sequence>();
+	qmlRegisterType<SerialCommunication>();
 
 	Sequencer sequencer;
 

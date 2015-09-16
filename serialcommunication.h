@@ -158,6 +158,7 @@ private:
  * The packes the hardware may send to the PC are the following ones:
  *	- sequence buffer not full
  *	- sequence buffer full
+ *	- debug packet
  *
  * The "start sequence" and "start immediate mode" packets tell the hardware in
  * which modality it should work. The "start sequence" makes the hardware expect
@@ -176,6 +177,10 @@ private:
  * In this case the hardware does not send any packet back (there is no buffer).
  * To termiante the immediate mode, the PC sends a "stop" packet. Packets sent
  * before either "start sequence" or "start immediate mode" are discarded.
+ *
+ * The debug packet is used by the hardware for debugging purpouse. It contains
+ * a string of maximum length 255 bytes which is simply displayed (no other
+ * action is performed).
  *
  * Here is the detailed description of every packet in the protocol.
  *
@@ -200,6 +205,10 @@ private:
  *
  * "sequence buffer full"
  * the character 'F' (1 byte)
+ *
+ * "debug packet"
+ * the characted 'D' (1 byte) - length of message (1 byte) - message (length of
+ * message elements)
  */
 class SerialCommunication : public QObject
 {
@@ -333,7 +342,7 @@ public:
 	 */
 	bool isStreamMode() const
 	{
-		m_isStreamMode;
+		return m_isStreamMode;
 	}
 
 	/**
@@ -365,6 +374,14 @@ signals:
 	 * \param error a description of the error
 	 */
 	void streamError(QString error);
+
+	/**
+	 * \brief The signal emitted when we receive a debug message from the
+	 *        hardware
+	 *
+	 * \param msg the message the hardware sent
+	 */
+	void debugMessage(QString msg);
 
 private slots:
 	/**
