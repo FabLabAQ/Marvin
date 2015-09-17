@@ -421,6 +421,9 @@ void SerialCommunication::processReceivedPackets()
 					// Emitting signal and printing
 					emit debugMessage(msg);
 					qDebug() << "Debug packet, content:" << msg;
+
+					// Removing packet from our buffer
+					m_incomingData.remove(0, 2 + msgLength);
 				}
 			}
 		} else {
