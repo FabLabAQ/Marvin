@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
 	qmlRegisterType<Sequence>();
 	qmlRegisterType<SerialCommunication>();
 
+	// Creating the main class of the application
 	Sequencer sequencer;
 
 	QQmlApplicationEngine engine;

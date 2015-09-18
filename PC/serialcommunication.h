@@ -63,6 +63,7 @@
  *	- sequence buffer not full
  *	- sequence buffer full
  *	- debug packet
+ *	- battery charge packet
  *
  * The "start sequence" and "start immediate mode" packets tell the hardware in
  * which modality it should work. The "start sequence" makes the hardware expect
@@ -84,7 +85,8 @@
  *
  * The debug packet is used by the hardware for debugging purpouse. It contains
  * a string of maximum length 255 bytes which is simply displayed (no other
- * action is performed).
+ * action is performed). The battery charge packet is used to communicate the
+ * current charge of batteries. It could be sent at any time.
  *
  * Here is the detailed description of every packet in the protocol.
  *
@@ -111,8 +113,12 @@
  * the character 'F' (1 byte)
  *
  * "debug packet"
- * the characted 'D' (1 byte) - length of message (1 byte) - message (length of
+ * the character 'D' (1 byte) - length of message (1 byte) - message (length of
  * message elements)
+ *
+ * "battery charge packet" (battery charge is 0 to indicate depleted battery,
+ * 255 for fully charged batteries)
+ * the character 'B' (1 byte) - battery charge (1 byte)
  */
 class SerialCommunication : public QObject
 {
@@ -124,6 +130,7 @@ class SerialCommunication : public QObject
 	Q_PROPERTY(bool isStreamMode READ isStreamMode NOTIFY isStreamModeChanged)
 	Q_PROPERTY(bool isImmediateMode READ isImmediateMode NOTIFY isImmediateModeChanged)
 	Q_PROPERTY(bool isPaused READ isPaused NOTIFY isPausedChanged)
+	Q_PROPERTY(float batteryCharge READ batteryCharge NOTIFY batteryChargeChanged)
 
 public:
 	/**
@@ -319,6 +326,18 @@ public:
 		return m_paused;
 	}
 
+	/**
+	 * \brief Returns the current battery charge
+	 *
+	 * This is a value between 0 and 100 (charge percentage), it is -1 if we
+	 * have not received the charge yet
+	 * \return the battery charge in percentage
+	 */
+	float batteryCharge() const
+	{
+		return m_batteryCharge;
+	}
+
 signals:
 	/**
 	 * \brief The signal emitted when the serial port name changes
@@ -371,6 +390,11 @@ signals:
 	 */
 	void debugMessage(QString msg);
 
+	/**
+	 * \brief The signal emitted when the battery charge changes
+	 */
+	void batteryChargeChanged();
+
 private slots:
 	/**
 	 * \brief The slot called when there is data ready to be read
@@ -401,6 +425,9 @@ private slots:
 
 	/**
 	 * \brief The slot called when the current point in the sequence changes
+	 *
+	 * This is connected to both the curPointChanged() and the
+	 * curPointValuesChanged() signals of the sequence
 	 */
 	void curPointChanged();
 
@@ -452,6 +479,15 @@ private:
 	 * \param v the new value of the flag
 	 */
 	void setIsImmediateMode(bool v);
+
+	/**
+	 * \brief Changes the value of the battery charge and emits the changed
+	 *        signal if needed
+	 *
+	 * \param v the new value of the battery charge (if negative, -1.0 is
+	 *          used)
+	 */
+	void setBatteryCharge(float v);
 
 	/**
 	 * \brief The name of the serial port to open
@@ -507,6 +543,11 @@ private:
 	 *        of the hardware is full
 	 */
 	bool m_hardwareQueueFull;
+
+	/**
+	 * \brief The current charge level of the battery
+	 */
+	float m_batteryCharge;
 };
 
 #endif // SERIALCOMMUNICATION_H

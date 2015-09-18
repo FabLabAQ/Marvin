@@ -140,6 +140,12 @@ Item {
 				text = "Debug message: " + message
 			}
 		}
+
+		Text {
+			text: "Battery charge: " + ((serialCommunication.batteryCharge < 0) ? "unknown" : (serialCommunication.batteryCharge + "%"))
+
+			Layout.fillWidth: true
+		}
 	}
 }
 

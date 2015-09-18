@@ -181,7 +181,7 @@ ApplicationWindow {
 	FileDialog {
 		id: openSequenceDialog
 		title: "Open..."
-		nameFilters: ["Sequence files (*.seq)"]
+		nameFilters: ["Sequence files (*.seq)", "All files (*)"]
 		selectExisting: true
 
 		onAccepted: {

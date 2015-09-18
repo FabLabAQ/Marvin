@@ -18,41 +18,28 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include "sequencer.h"
-#include <QFile>
-#include <QUrl>
-#include <QDebug>
+/**
+ * \brief The dimension of points
+ */
+const unsigned int pointDim = 16;
 
-// ONLY FOR TESTING, REMOVE!!!
-namespace {
-	const SequencePoint minPoint(QVector<double>() << -1.0 << 40.0 << -36.0, 3, 1);
-	const SequencePoint maxPoint(QVector<double>() << 4.0 << 230.0 << 75.0, 3000, 10000);
-}
-
-Sequencer::Sequencer(QObject *parent)
-	: QObject(parent)
-	, m_sequence(std::make_unique<Sequence>(3, minPoint, maxPoint))
-	, m_serialCommunication(std::make_unique<SerialCommunication>())
+/**
+ * \brief A single point of the sequence
+ */
+struct SequencePoint
 {
-}
-
-void Sequencer::newSequence()
-{
-	m_sequence = std::make_unique<Sequence>(3, minPoint, maxPoint);
-
-	emit sequenceChanged();
-}
-
-bool Sequencer::saveSequence(QString filename)
-{
-	return m_sequence->save(QUrl(filename).toLocalFile());
-}
-
-bool Sequencer::loadSequence(QString filename)
-{
-	m_sequence = Sequence::load(QUrl(filename).toLocalFile());
-
-	emit sequenceChanged();
-
-	return m_sequence->isValid();
-}
+	/**
+	 * \brief The point coordinates
+	 */
+	unsigned char point[pointDim];
+	
+	/**
+	 * \brief The duration of the point in milliseconds
+	 */
+	unsigned int duration;
+	
+	/**
+	 * \brief The time to reach this point in milliseconds
+	 */
+	unsigned int timeToTarget;
+};

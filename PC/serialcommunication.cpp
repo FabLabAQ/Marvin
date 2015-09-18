@@ -33,6 +33,7 @@ SerialCommunication::SerialCommunication(QObject* parent)
 	, m_incomingData()
 	, m_paused(false)
 	, m_hardwareQueueFull(false)
+	, m_batteryCharge(-1.0)
 {
 	// Connecting signals from the serial port
 	connect(&m_serialPort, &QSerialPort::readyRead, this, &SerialCommunication::handleReadyRead);
@@ -110,6 +111,9 @@ bool SerialCommunication::closeSerial()
 
 		// Signalling that the port is closed
 		emit isConnectedChanged();
+
+		// Setting the battery charge to -1.0
+		setBatteryCharge(-1.0);
 	}
 
 	return true;
@@ -209,8 +213,9 @@ bool SerialCommunication::startImmediate(Sequence* sequence)
 	// Saving the sequence
 	m_sequence = sequence;
 
-	// Connecting the signal of the sequence telling us when the current point changes
+	// Connecting the signals of the sequence telling us when the current point changes
 	connect(m_sequence, &Sequence::curPointChanged, this, &SerialCommunication::curPointChanged);
+	connect(m_sequence, &Sequence::curPointValuesChanged, this, &SerialCommunication::curPointChanged);
 
 	// If the m_arduinoBoot timer is running, we have to wait, otherwise we explicitly call
 	// the arduinoBootFinished() function to send the current point of the sequence
@@ -383,6 +388,9 @@ void SerialCommunication::processReceivedPackets()
 	// not complete and we must wait for more data
 	bool stopProcessing = false;
 	while (!(m_incomingData.isEmpty() || stopProcessing)) {
+
+		SE SIAMO IN PAUSA, NON DOBBIAMO SALTARE TUTTO! SALTARE SOLO I PACCHETTI 'N' E 'F' E CONTINUARE CON IL PARSING E RIMUOVERE I PACCHETTI PARSATI DAL BUFFER. NON FA NIENTE SE PERDIAMO QUALCHE CICLO TUTTE LE VOLTE (PERCHÈ I PACCHETTI SALTATI RIMANGONO ALL INIZIO DEL BUFFER. EVENTUALMENTE SALVARSI LA POSIZIONE NEL BUFFER DEL PRIMO PACCHETTO NON PARSATO IN UNA VARIABILE TIPO m_startAtIndexWhenInPause)
+
 		// Taking the first characted, of data, it tells us the kind of packet we received
 		if (isStreamMode()) {
 			if (m_paused) {
@@ -476,5 +484,18 @@ void SerialCommunication::setIsImmediateMode(bool v)
 		m_isImmediateMode = v;
 
 		emit isImmediateModeChanged();
+	}
+}
+
+void SerialCommunication::setBatteryCharge(float v)
+{
+	if (v < 0.0) {
+		v = -1.0;
+	}
+
+	if (v != m_batteryCharge) {
+		m_batteryCharge = v;
+
+		emit batteryChargeChanged();
 	}
 }
