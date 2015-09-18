@@ -39,14 +39,14 @@ static const uint8_t PROGMEM                     // declare a smile bitmap
     
 void initializeFace()
 {
-  face.begin(0x70);         // initialize LED backpack over I²C
+  face.begin(0x70);         // initialize LED backpack over I²C at the given address
   face.setRotation(3);      // set rotation to match the position on the robot
   face.setBrightness(7);    // set an appropriate brightness (0-15)
 }
 
 void smile()
 {
-  face.clear();                                        // clear whatever has left on the display
+  face.clear();                                        // clear whatever was left on the display
   face.drawBitmap(0, 0, smile_bmp, 8, 8, LED_ON);      // send bitmap to cover the entire display area
   face.writeDisplay();                                 // show image
 }
