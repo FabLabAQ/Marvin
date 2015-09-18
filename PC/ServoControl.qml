@@ -38,148 +38,148 @@ ScrollView {
 		source: "qrc:///robot.png"
 		z: 0
 
-        SingleServoControl {
-            x: 366
-            y: 370
-            width: 100
-            servoID: 0
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 366
+			y: 370
+			width: 100
+			servoID: 0
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 366
-            y: 270
-            width: 100
-            servoID: 1
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 366
+			y: 270
+			width: 100
+			servoID: 1
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 366
-            y: 150
-            width: 100
-            servoID: 2
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 366
+			y: 150
+			width: 100
+			servoID: 2
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 266
-            y: 150
-            width: 100
-            servoID: 3
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 266
+			y: 150
+			width: 100
+			servoID: 3
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 250
-            y: 400
-            width: 100
-            servoID: 4
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 250
+			y: 400
+			width: 100
+			servoID: 4
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 260
-            y: 530
-            width: 100
-            servoID: 5
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 260
+			y: 530
+			width: 100
+			servoID: 5
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 260
-            y: 670
-            width: 100
-            servoID: 6
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 260
+			y: 670
+			width: 100
+			servoID: 6
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 260
-            y: 800
-            width: 100
-            servoID: 7
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 260
+			y: 800
+			width: 100
+			servoID: 7
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 110
-            y: 800
-            width: 100
-            servoID: 8
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 110
+			y: 800
+			width: 100
+			servoID: 8
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 110
-            y: 670
-            width: 100
-            servoID: 9
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 110
+			y: 670
+			width: 100
+			servoID: 9
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 110
-            y: 530
-            width: 100
-            servoID: 10
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 110
+			y: 530
+			width: 100
+			servoID: 10
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 120
-            y: 400
-            width: 100
-            servoID: 11
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 120
+			y: 400
+			width: 100
+			servoID: 11
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 100
-            y: 150
-            width: 100
-            servoID: 12
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 100
+			y: 150
+			width: 100
+			servoID: 12
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 0
-            y: 150
-            width: 100
-            servoID: 13
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 0
+			y: 150
+			width: 100
+			servoID: 13
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 0
-            y: 270
-            width: 100
-            servoID: 14
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 0
+			y: 270
+			width: 100
+			servoID: 14
+			orientation: Qt.Vertical
+			z: 10
+		}
 
-        SingleServoControl {
-            x: 0
-            y: 370
-            width: 100
-            servoID: 15
-            orientation: Qt.Vertical
-            z: 10
-        }
+		SingleServoControl {
+			x: 0
+			y: 370
+			width: 100
+			servoID: 15
+			orientation: Qt.Vertical
+			z: 10
+		}
 	}
 }

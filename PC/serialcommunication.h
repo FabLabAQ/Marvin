@@ -534,6 +534,11 @@ private:
 	QByteArray m_incomingData;
 
 	/**
+	 * \brief The index in m_incomingData to process
+	 */
+	int m_indexToProcess;
+
+	/**
 	 * \brief If true streaming is paused in stream mode
 	 */
 	bool m_paused;

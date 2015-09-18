@@ -31,6 +31,7 @@ SerialCommunication::SerialCommunication(QObject* parent)
 	, m_isImmediateMode(false)
 	, m_arduinoBoot()
 	, m_incomingData()
+	, m_indexToProcess(0)
 	, m_paused(false)
 	, m_hardwareQueueFull(false)
 	, m_batteryCharge(-1.0)
@@ -131,6 +132,7 @@ bool SerialCommunication::startStream(Sequence* sequence, bool startFromCurrent)
 	}
 
 	m_incomingData.clear();
+	m_indexToProcess = 0;
 
 	// Resetting the pause flag and setting the m_is*Mode flags
 	m_paused = false;
@@ -205,6 +207,7 @@ bool SerialCommunication::startImmediate(Sequence* sequence)
 	}
 
 	m_incomingData.clear();
+	m_indexToProcess = 0;
 
 	// Setting the m_is*Mode flags
 	setIsStreamMode(false);
@@ -249,6 +252,7 @@ bool SerialCommunication::stop()
 	setIsImmediateMode(false);
 
 	m_incomingData.clear();
+	m_indexToProcess = 0;
 
 	return true;
 }
@@ -384,63 +388,85 @@ QByteArray SerialCommunication::createSequencePacketForPoint(const SequencePoint
 
 void SerialCommunication::processReceivedPackets()
 {
-	// This flag is true if there is data in the m_incomingData buffer but the packet is
-	// not complete and we must wait for more data
-	bool stopProcessing = false;
-	while (!(m_incomingData.isEmpty() || stopProcessing)) {
+	// If we are not in pause, we can process all the packets, also old ones
+	if (!m_paused) {
+		m_indexToProcess = 0;
+	}
 
-		SE SIAMO IN PAUSA, NON DOBBIAMO SALTARE TUTTO! SALTARE SOLO I PACCHETTI 'N' E 'F' E CONTINUARE CON IL PARSING E RIMUOVERE I PACCHETTI PARSATI DAL BUFFER. NON FA NIENTE SE PERDIAMO QUALCHE CICLO TUTTE LE VOLTE (PERCHÈ I PACCHETTI SALTATI RIMANGONO ALL INIZIO DEL BUFFER. EVENTUALMENTE SALVARSI LA POSIZIONE NEL BUFFER DEL PRIMO PACCHETTO NON PARSATO IN UNA VARIABILE TIPO m_startAtIndexWhenInPause)
-
-		// Taking the first characted, of data, it tells us the kind of packet we received
-		if (isStreamMode()) {
+	// If this is true, we only received part of a packet
+	bool partialPacket = false;
+	while ((m_indexToProcess < m_incomingData.size()) && (!partialPacket)) {
+		if ((m_incomingData[m_indexToProcess] == 'N') && isStreamMode()) {
 			if (m_paused) {
-				// We are paused, not processing incoming data
-				stopProcessing = true;
-			} else if (m_incomingData[0] == 'N') {
-				// Buffer not full, we can send the current point in the sequence and move the current point forward
+				// Skipping this packet, we are paused
+				++m_indexToProcess;
+			} else {
+				// Buffer not full, we can send the current point in the sequence and move
+				// the current point forward
 				m_hardwareQueueFull = false;
 				sendData(createSequencePacketForPoint(m_sequence->point()));
 				incrementCurPoint();
 
-				// Removing packet from our buffer
-				m_incomingData.remove(0, 1);
-			} else if (m_incomingData[0] == 'F') {
+				// Removing packet from buffer. The next index to process remains the current one
+				m_incomingData.remove(m_indexToProcess, 1);
+			}
+		} else if ((m_incomingData[m_indexToProcess] == 'F') && isStreamMode()) {
+			if (m_paused) {
+				// Skipping this packet, we are paused
+				++m_indexToProcess;
+			} else {
 				// Buffer full
 				m_hardwareQueueFull = true;
 
-				// Removing packet from our buffer
-				m_incomingData.remove(0, 1);
+				// Removing packet from buffer. The next index to process remains the current one
+				m_incomingData.remove(m_indexToProcess, 1);
 			}
-		} else if (m_incomingData[0] == 'D') {
+		} else  if (m_incomingData[m_indexToProcess] == 'D') {
 			// Debug packet, printing and emitting signal if the message is complete
-			if (m_incomingData.size() < 2) {
-				stopProcessing = true;
+			if (m_incomingData.size() < (m_indexToProcess + 2)) {
+				partialPacket = true;
 			} else {
 				// Reading message length
-				int msgLength = static_cast<unsigned char>(m_incomingData[1]);
+				int msgLength = static_cast<unsigned char>(m_incomingData[m_indexToProcess + 1]);
 
 				// Checking we have the whole message
-				if (m_incomingData.size() < (2 + msgLength)) {
-					stopProcessing = true;
+				if (m_incomingData.size() < (m_indexToProcess + 2 + msgLength)) {
+					partialPacket = true;
 				} else {
 					// We have the whole message, putting in a QString
-					const QString msg(m_incomingData.mid(2, msgLength));
+					const QString msg(m_incomingData.mid(m_indexToProcess + 2, msgLength));
 
 					// Emitting signal and printing
 					emit debugMessage(msg);
 					qDebug() << "Debug packet, content:" << msg;
 
-					// Removing packet from our buffer
-					m_incomingData.remove(0, 2 + msgLength);
+					// Removing packet from our buffer. The next index to process remains
+					// the current one
+					m_incomingData.remove(m_indexToProcess, 2 + msgLength);
 				}
 			}
+		} else if (m_incomingData[m_indexToProcess] == 'B') {
+			// Battery packet, checking that the packet is finished and updating the charge
+			if (m_incomingData.size() < (m_indexToProcess + 2)) {
+				partialPacket = true;
+			} else {
+				// Reading charge level
+				int chargeLevel = static_cast<unsigned char>(m_incomingData[m_indexToProcess + 1]);
+
+				// Setting the charge level
+				setBatteryCharge((float(chargeLevel) / 255.0) * 100.0);
+
+				// Removing packet from our buffer. The next index to process remains
+				// the current one
+				m_incomingData.remove(m_indexToProcess, 2);
+			}
 		} else {
-			const QString errorString = QString("Received unknown or invalid packet type %1 (ascii %2)").arg(static_cast<unsigned int>(m_incomingData[0])).arg(m_incomingData[0]);
+			const QString errorString = QString("Received unknown or invalid packet type %1 (ascii %2)").arg(static_cast<unsigned int>(m_incomingData[m_indexToProcess])).arg(m_incomingData[m_indexToProcess]);
 			emit streamError(errorString);
 			qDebug() << errorString;
 
-			// Removing the unknown character
-			m_incomingData.remove(0, 1);
+			// Removing the unknown character. The next index to process remains the current one
+			m_incomingData.remove(m_indexToProcess, 1);
 		}
 	}
 }
