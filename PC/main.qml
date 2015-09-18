@@ -36,8 +36,8 @@ import QtQuick.Layouts 1.1
 ApplicationWindow {
 	id: mainWindow
 	title: qsTr("Sequencer GUI")
-	width: 640
-	height: 480
+    width: 730
+    height: 900
 	visible: true
 
 	// This component keeps som internal variables
@@ -111,7 +111,7 @@ ApplicationWindow {
 			title: qsTr("&Edit")
 			MenuItem {
 				text: qsTr("O&ptions")
-				onTriggered: optionsDialog.show();
+				onTriggered: messageDialog.show(qsTr("Option action triggered"));
 			}
 		}
 	}
@@ -200,10 +200,6 @@ ApplicationWindow {
 			internal.filename = saveSequenceDialog.fileUrl;
 			saveSequence(saveSequenceDialog.fileUrl);
 		}
-	}
-
-	OptionsDialog {
-		id: optionsDialog
 	}
 
 	onClosing: {
