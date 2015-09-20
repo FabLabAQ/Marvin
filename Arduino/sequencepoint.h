@@ -19,25 +19,25 @@
  ******************************************************************************/
 
 /**
- * \brief The dimension of points
- */
-const unsigned int pointDim = 16;
-
-/**
  * \brief A single point of the sequence
  */
 struct SequencePoint
 {
 	/**
+	 * \brief The dimension of points
+	 */
+	static const unsigned char dim = 16;
+
+	/**
 	 * \brief The point coordinates
 	 */
-	unsigned char point[pointDim];
-	
+	unsigned char point[dim];
+
 	/**
 	 * \brief The duration of the point in milliseconds
 	 */
 	unsigned int duration;
-	
+
 	/**
 	 * \brief The time to reach this point in milliseconds
 	 */

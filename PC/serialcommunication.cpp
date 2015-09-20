@@ -340,8 +340,10 @@ void SerialCommunication::arduinoBootFinished()
 		startPacket.append(m_sequence->pointDim() && 0xFF);
 		sendData(startPacket);
 
-		// Now sending the first sequence packet
-		sendData(createSequencePacketForPoint(m_sequence->point()));
+		// Now sending the first sequence packet if present
+		if (m_sequence->curPoint() != -1) {
+			sendData(createSequencePacketForPoint(m_sequence->point()));
+		}
 
 		// If we are in stream mode, we have to move the current point forward
 		if (isStreamMode()) {
@@ -359,8 +361,10 @@ void SerialCommunication::curPointChanged()
 		return;
 	}
 
-	// Sending the current point
-	sendData(createSequencePacketForPoint(m_sequence->point()));
+	// Sending the current point if present
+	if (m_sequence->curPoint() != -1) {
+		sendData(createSequencePacketForPoint(m_sequence->point()));
+	}
 }
 
 QByteArray SerialCommunication::createSequencePacketForPoint(const SequencePoint& p) const
@@ -404,7 +408,9 @@ void SerialCommunication::processReceivedPackets()
 				// Buffer not full, we can send the current point in the sequence and move
 				// the current point forward
 				m_hardwareQueueFull = false;
-				sendData(createSequencePacketForPoint(m_sequence->point()));
+				if (m_sequence->curPoint() != -1) {
+					sendData(createSequencePacketForPoint(m_sequence->point()));
+				}
 				incrementCurPoint();
 
 				// Removing packet from buffer. The next index to process remains the current one

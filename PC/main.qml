@@ -111,7 +111,7 @@ ApplicationWindow {
 			title: qsTr("&Edit")
 			MenuItem {
 				text: qsTr("O&ptions")
-				onTriggered: messageDialog.show(qsTr("Option action triggered"));
+				onTriggered: optionsDialog.show(qsTr("Option action triggered"));
 			}
 		}
 	}
@@ -200,6 +200,10 @@ ApplicationWindow {
 			internal.filename = saveSequenceDialog.fileUrl;
 			saveSequence(saveSequenceDialog.fileUrl);
 		}
+	}
+
+	OptionsDialog {
+		id: optionsDialog
 	}
 
 	onClosing: {

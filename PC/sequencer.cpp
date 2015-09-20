@@ -25,20 +25,20 @@
 
 // ONLY FOR TESTING, REMOVE!!!
 namespace {
-	const SequencePoint minPoint(QVector<double>() << -1.0 << 40.0 << -36.0, 3, 1);
-	const SequencePoint maxPoint(QVector<double>() << 4.0 << 230.0 << 75.0, 3000, 10000);
+	const SequencePoint minPoint(QVector<double>(16, 0), 3, 1);
+	const SequencePoint maxPoint(QVector<double>(16, 255), 3000, 10000);
 }
 
 Sequencer::Sequencer(QObject *parent)
 	: QObject(parent)
-	, m_sequence(std::make_unique<Sequence>(3, minPoint, maxPoint))
+	, m_sequence(std::make_unique<Sequence>(16, minPoint, maxPoint))
 	, m_serialCommunication(std::make_unique<SerialCommunication>())
 {
 }
 
 void Sequencer::newSequence()
 {
-	m_sequence = std::make_unique<Sequence>(3, minPoint, maxPoint);
+	m_sequence = std::make_unique<Sequence>(16, minPoint, maxPoint);
 
 	emit sequenceChanged();
 }

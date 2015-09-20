@@ -18,31 +18,43 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
+#include "serialcommunication.h"
+#include <stdlib.h>
+
 // The baud rate to use for communication with computer
 const long baudRate = 115200;
+// The object that handles communication
+SerialCommunication serialComm;
+
+// JUST FOR TESTING
+SequencePoint p;
 
 void setup()
 {
-	Serial.begin(baudRate);
+	serialComm.begin(baudRate);
+
+	serialComm.setNextSequencePointToFill(&p);
 }
 
 void loop()
 {
-	while (Serial.available() > 0) {
-		const int datum = Serial.read();
+	char buf[256];
+
+	if (serialComm.commandReceived()) {
+		if (serialComm.isSequencePoint()) {
+			sprintf(buf, "Got POINT: %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i", p.duration, p.timeToTarget, p.point[0], p.point[1], p.point[2], p.point[3], p.point[4], p.point[5], p.point[6], p.point[7], p.point[8], p.point[9], p.point[10], p.point[11], p.point[12], p.point[13], p.point[14], p.point[15]);
+		} else if (serialComm.isStartStream()) {
+			sprintf(buf, "Got STREAM (%i)", serialComm.pointDimension());
+		} else if (serialComm.isStartImmediate()) {
+			sprintf(buf, "Got IMMEDIATE (%i)", serialComm.pointDimension());
+		} else if (serialComm.isStop()) {
+			strcpy(buf, "Got STOP");
+		} else {
+			strcpy(buf, "Unknown command");
+		}
+
+		serialComm.sendDebugPacket(buf);
 	}
 
-	char msg[10];
-	msg[0] = 'D';
-	msg[1] = 5;
-	msg[2] = 'C';
-	msg[3] = 'i';
-	msg[4] = 'a';
-	msg[5] = 'o';
-	msg[6] = '!';
-	msg[7] = 0;
-
-	Serial.write(msg);
-
-	delay(500);
+	delay(50);
 }
