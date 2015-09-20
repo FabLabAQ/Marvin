@@ -56,6 +56,8 @@ bool SerialCommunication::commandReceived()
 				break;
 			}
 		} else if ((m_receivedCommand == 'S') || (m_receivedCommand == 'I')) {
+			++m_receivedPacketBytes;
+
 			// The byte we received is the point dimension, storing and returning true
 			m_receivedPointDim = (unsigned char) v;
 			retVal = true;

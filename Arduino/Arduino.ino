@@ -41,19 +41,25 @@ void loop()
 	char buf[256];
 
 	if (serialComm.commandReceived()) {
+		bool sendBufNotFull = false;
 		if (serialComm.isSequencePoint()) {
-			sprintf(buf, "Got POINT: %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i", p.duration, p.timeToTarget, p.point[0], p.point[1], p.point[2], p.point[3], p.point[4], p.point[5], p.point[6], p.point[7], p.point[8], p.point[9], p.point[10], p.point[11], p.point[12], p.point[13], p.point[14], p.point[15]);
+			sprintf(buf, "%c Got POINT: %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i", serialComm.receivedCommand(), p.duration, p.timeToTarget, p.point[0], p.point[1], p.point[2], p.point[3], p.point[4], p.point[5], p.point[6], p.point[7], p.point[8], p.point[9], p.point[10], p.point[11], p.point[12], p.point[13], p.point[14], p.point[15]);
+
+			sendBufNotFull = true;
 		} else if (serialComm.isStartStream()) {
-			sprintf(buf, "Got STREAM (%i)", serialComm.pointDimension());
+			sprintf(buf, "%c Got STREAM (%i)", serialComm.receivedCommand(), serialComm.pointDimension());
 		} else if (serialComm.isStartImmediate()) {
-			sprintf(buf, "Got IMMEDIATE (%i)", serialComm.pointDimension());
+			sprintf(buf, "%c Got IMMEDIATE (%i)", serialComm.receivedCommand(), serialComm.pointDimension());
 		} else if (serialComm.isStop()) {
-			strcpy(buf, "Got STOP");
+			sprintf(buf, "%c Got STOP", serialComm.receivedCommand());
 		} else {
-			strcpy(buf, "Unknown command");
+			sprintf(buf, "%c Unknown command", serialComm.receivedCommand());
 		}
 
 		serialComm.sendDebugPacket(buf);
+		if (sendBufNotFull) {
+			serialComm.sendBufferNotFull();
+		}
 	}
 
 	delay(50);

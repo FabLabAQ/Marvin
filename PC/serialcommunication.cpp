@@ -337,7 +337,7 @@ void SerialCommunication::arduinoBootFinished()
 			qFatal("Unknown mode, we should never get here");
 		}
 		// Adding the number of dimension of point to the start packet
-		startPacket.append(m_sequence->pointDim() && 0xFF);
+		startPacket.append(m_sequence->pointDim() & 0xFF);
 		sendData(startPacket);
 
 		// Now sending the first sequence packet if present
@@ -375,11 +375,11 @@ QByteArray SerialCommunication::createSequencePacketForPoint(const SequencePoint
 	pkt[0] = 'P';
 
 	// Point duration
-	pkt[1] = (p.duration >> 8) && 0xFF;
+	pkt[1] = (p.duration >> 8) & 0xFF;
 	pkt[2] = p.duration & 0xFF;
 
 	// Point time to target
-	pkt[3] = (p.timeToTarget >> 8) && 0xFF;
+	pkt[3] = (p.timeToTarget >> 8) & 0xFF;
 	pkt[4] = p.timeToTarget & 0xFF;
 
 	// Values
@@ -467,9 +467,13 @@ void SerialCommunication::processReceivedPackets()
 				m_incomingData.remove(m_indexToProcess, 2);
 			}
 		} else {
-			const QString errorString = QString("Received unknown or invalid packet type %1 (ascii %2)").arg(static_cast<unsigned int>(m_incomingData[m_indexToProcess])).arg(m_incomingData[m_indexToProcess]);
-			emit streamError(errorString);
-			qDebug() << errorString;
+			if ((m_incomingData[m_indexToProcess] == 'N') || (m_incomingData[m_indexToProcess] == 'F')) {
+				qDebug() << "Received spurious N or F packet";
+			} else {
+				const QString errorString = QString("Received unknown or invalid packet type %1 (ascii %2)").arg(static_cast<unsigned int>(m_incomingData[m_indexToProcess])).arg(m_incomingData[m_indexToProcess]);
+				emit streamError(errorString);
+				qDebug() << errorString;
+			}
 
 			// Removing the unknown character. The next index to process remains the current one
 			m_incomingData.remove(m_indexToProcess, 1);
@@ -491,6 +495,14 @@ void SerialCommunication::incrementCurPoint()
 
 void SerialCommunication::sendData(const QByteArray& dataToSend)
 {
+	if (!dataToSend.isEmpty()) {
+		QString strData = QChar(dataToSend[0]);
+		for (int i = 1; i < dataToSend.size(); ++i) {
+			strData += " " + QString::number(dataToSend[i]);
+		}
+		qDebug() << "SENDING DATA: " << strData;
+	}
+
 	// Writing data
 	qint64 bytesWritten = m_serialPort.write(dataToSend);
 
