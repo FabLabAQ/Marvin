@@ -23,22 +23,23 @@
 #include <QUrl>
 #include <QDebug>
 
-// ONLY FOR TESTING, REMOVE!!!
+// ONLY FOR TESTING, CHANGE!!!
 namespace {
-	const SequencePoint minPoint(QVector<double>(16, 0), 3, 1);
-	const SequencePoint maxPoint(QVector<double>(16, 255), 3000, 10000);
+	const unsigned int pointDim = 16;
+	const SequencePoint minPoint(QVector<double>(pointDim, 0), 3, 1);
+	const SequencePoint maxPoint(QVector<double>(pointDim, 255), 3000, 10000);
 }
 
 Sequencer::Sequencer(QObject *parent)
 	: QObject(parent)
-	, m_sequence(std::make_unique<Sequence>(16, minPoint, maxPoint))
+	, m_sequence(std::make_unique<Sequence>(pointDim, minPoint, maxPoint))
 	, m_serialCommunication(std::make_unique<SerialCommunication>())
 {
 }
 
 void Sequencer::newSequence()
 {
-	m_sequence = std::make_unique<Sequence>(16, minPoint, maxPoint);
+	m_sequence = std::make_unique<Sequence>(pointDim, minPoint, maxPoint);
 
 	emit sequenceChanged();
 }
