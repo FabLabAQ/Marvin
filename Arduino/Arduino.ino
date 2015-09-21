@@ -28,6 +28,7 @@ SerialCommunication serialComm;
 
 // JUST FOR TESTING
 SequencePoint p;
+unsigned long lastTime = 0;
 
 void setup()
 {
@@ -40,20 +41,30 @@ void loop()
 {
 	char buf[256];
 
+	// Adaptive sleep, so that the loop() function lasts approximately 1000 microseconds
+	const unsigned long curTime = micros();
+	const unsigned long timeSpent = curTime - lastTime;
+	const int sleepTime = 998 - timeSpent; // 998 and not 1000 to compensate for all these instructions
+	if (sleepTime > 0) {
+		delayMicroseconds(sleepTime);
+	}
+	lastTime = micros();
+
 	if (serialComm.commandReceived()) {
 		bool sendBufNotFull = false;
 		if (serialComm.isSequencePoint()) {
-			sprintf(buf, "%c Got POINT: %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i", serialComm.receivedCommand(), p.duration, p.timeToTarget, p.point[0], p.point[1], p.point[2], p.point[3], p.point[4], p.point[5], p.point[6], p.point[7], p.point[8], p.point[9], p.point[10], p.point[11], p.point[12], p.point[13], p.point[14], p.point[15]);
+// 			sprintf(buf, "%c (dt: %lu) Got POINT: %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u", serialComm.receivedCommand(), timeSpent, p.duration, p.timeToTarget, p.point[0], p.point[1], p.point[2], p.point[3], p.point[4], p.point[5], p.point[6], p.point[7], p.point[8], p.point[9], p.point[10], p.point[11], p.point[12], p.point[13], p.point[14], p.point[15]);
+			sprintf(buf, "%c (dt: %lu) Got POINT", serialComm.receivedCommand(), timeSpent);
 
 			sendBufNotFull = true;
 		} else if (serialComm.isStartStream()) {
-			sprintf(buf, "%c Got STREAM (%i)", serialComm.receivedCommand(), serialComm.pointDimension());
+			sprintf(buf, "%c (dt: %lu) Got STREAM (%i)", serialComm.receivedCommand(), timeSpent, serialComm.pointDimension());
 		} else if (serialComm.isStartImmediate()) {
-			sprintf(buf, "%c Got IMMEDIATE (%i)", serialComm.receivedCommand(), serialComm.pointDimension());
+			sprintf(buf, "%c (dt: %lu) Got IMMEDIATE (%i)", serialComm.receivedCommand(), timeSpent, serialComm.pointDimension());
 		} else if (serialComm.isStop()) {
-			sprintf(buf, "%c Got STOP", serialComm.receivedCommand());
+			sprintf(buf, "%c (dt: %lu) Got STOP", serialComm.receivedCommand(), timeSpent);
 		} else {
-			sprintf(buf, "%c Unknown command", serialComm.receivedCommand());
+			sprintf(buf, "%c (dt: %lu) Unknown command", serialComm.receivedCommand(), timeSpent);
 		}
 
 		serialComm.sendDebugPacket(buf);
@@ -61,6 +72,4 @@ void loop()
 			serialComm.sendBufferNotFull();
 		}
 	}
-
-	delay(50);
 }
