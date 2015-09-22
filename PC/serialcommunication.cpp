@@ -23,7 +23,7 @@
 
 SerialCommunication::SerialCommunication(QObject* parent)
 	: QObject(parent)
-	, m_serialPortName("/dev/ttyS0")
+	, m_serialPortName("/dev/ttyACM0")
 	, m_baudRate(115200)
 	, m_serialPort()
 	, m_sequence(nullptr)
@@ -146,6 +146,9 @@ bool SerialCommunication::startStream(Sequence* sequence, bool startFromCurrent)
 		m_sequence->setCurPoint(0);
 	}
 
+	// Emitting the signal telling that we started streaming
+	emit isStreamingChanged();
+
 	// If the m_arduinoBoot timer is running, we have to wait, otherwise we explicitly call
 	// the arduinoBootFinished() function to start sending the sequence
 	if (!m_arduinoBoot.isActive()) {
@@ -216,6 +219,9 @@ bool SerialCommunication::startImmediate(Sequence* sequence)
 	// Saving the sequence
 	m_sequence = sequence;
 
+	// Emitting the signal telling that we started streaming
+	emit isStreamingChanged();
+
 	// Connecting the signals of the sequence telling us when the current point changes
 	connect(m_sequence, &Sequence::curPointChanged, this, &SerialCommunication::curPointChanged);
 	connect(m_sequence, &Sequence::curPointValuesChanged, this, &SerialCommunication::curPointChanged);
@@ -244,6 +250,9 @@ bool SerialCommunication::stop()
 
 	// Setting the sequence to nullptr
 	m_sequence = nullptr;
+
+	// Emitting the signal telling that we stopped streaming
+	emit isStreamingChanged();
 
 	// Resetting flags
 	m_paused = false;
@@ -405,6 +414,8 @@ void SerialCommunication::processReceivedPackets()
 				// Skipping this packet, we are paused
 				++m_indexToProcess;
 			} else {
+				qDebug() << "RECEIVED BUFFER NOT FULL";
+
 				// Buffer not full, we can send the current point in the sequence and move
 				// the current point forward
 				m_hardwareQueueFull = false;
@@ -421,6 +432,8 @@ void SerialCommunication::processReceivedPackets()
 				// Skipping this packet, we are paused
 				++m_indexToProcess;
 			} else {
+				qDebug() << "RECEIVED BUFFER FULL";
+
 				// Buffer full
 				m_hardwareQueueFull = true;
 
@@ -495,6 +508,11 @@ void SerialCommunication::incrementCurPoint()
 
 void SerialCommunication::sendData(const QByteArray& dataToSend)
 {
+	if (dataToSend.isEmpty()) {
+		return;
+	}
+
+#warning REMOVE THIS!!!
 	if (!dataToSend.isEmpty()) {
 		QString strData = QChar(dataToSend[0]);
 		for (int i = 1; i < dataToSend.size(); ++i) {

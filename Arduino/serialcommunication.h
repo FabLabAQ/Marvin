@@ -119,7 +119,7 @@ public:
 	}
 
 	/**
-	 * \brief Sets the object to fill for the next sequence packet
+	 * \brief Sets the object to fill with the next sequence packet
 	 *
 	 * The object provided in the function parameter will be filled by the
 	 * next sequence packet. Change it after receiveing a sequence packet or
@@ -127,6 +127,29 @@ public:
 	 * \param p the object to store the sequence point
 	 */
 	void setNextSequencePointToFill(SequencePoint* p);
+
+	/**
+	 * \brief Returns the object to fill with the next sequence packet
+	 *        (const version)
+	 *
+	 * See the description of setNextSequencePointToFill()
+	 * \return the object to fill with the next sequence packet
+	 */
+	const SequencePoint* nextSequencePointToFill() const
+	{
+		return m_pointToFill;
+	}
+
+	/**
+	 * \brief Returns the object to fill with the next sequence packet
+	 *
+	 * See the description of setNextSequencePointToFill()
+	 * \return the object to fill with the next sequence packet
+	 */
+	SequencePoint* nextSequencePointToFill()
+	{
+		return m_pointToFill;
+	}
 
 	/**
 	 * \brief Returns the received point dimension

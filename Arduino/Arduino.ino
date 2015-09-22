@@ -47,6 +47,8 @@ SequencePlayer sequencePlayer(loopDuration);
 const unsigned long batteryInterval = 1000;
 // The milliseconds we last sent the battery charge
 unsigned long lastBatteryTime = 0;
+// This is true if the sequence buffer was full
+bool sequenceBufferWasFull = false;
 
 // // The face object
 // Adafruit_8x8matrix face = Adafruit_8x8matrix();
@@ -95,13 +97,13 @@ unsigned long lastBatteryTime = 0;
 void setup()
 {
 	// Initializing the object handling serial communication
-	serialComm.begin(baudRate);
+	serialCommunication.begin(baudRate);
 
 	// Initializing the object handling servos
 	sequencePlayer.begin();
 
 	// Setting the point to fill. The buffer cannot be full at this stage!
-	serialComm.setNextSequencePointToFill(sequencePlayer.pointToFill());
+	serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
 
 // 	// initialize Adafruit's LED backpack
 // 	initializeFace();
@@ -115,15 +117,25 @@ void loop()
 	const unsigned long curTime = micros();
 	const unsigned long timeSpent = curTime - lastTime;
 	// Perhaps remove few microsends to compensate for the instructions above
-	if (timeSpent > loopDuration) {
+	if (timeSpent < loopDuration) {
 		delayMicroseconds(loopDuration - timeSpent);
+	} else {
+		serialCommunication.sendDebugPacket("We are too slow!");
 	}
 	lastTime = micros();
 	const unsigned long totalSleepTime = lastTime - curTime;
 
 	// Moving servos. We do this here to ensure step is called at constant intervals. We do this
 	// even when idle because in that case we are sure the buffer is empty
-	const bool sequenceEmpty = sequencePlayer.step();
+	sequencePlayer.step();
+
+	// If the buffer was full and it is no longer full, sending a buffer not full package
+	if ((status == StreamMode) && sequenceBufferWasFull && (!sequencePlayer.bufferFull())) {
+		serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
+		serialCommunication.sendBufferNotFull();
+
+		sequenceBufferWasFull = false;
+	}
 
 	// Checking if there are new commands
 	if (serialCommunication.commandReceived()) {
@@ -135,6 +147,8 @@ void loop()
 						serialCommunication.sendDebugPacket("Invalid point dimension");
 					} else {
 						status = StreamMode;
+						sequenceBufferWasFull = false;
+						serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
 					}
 				} else if (serialCommunication.isStartImmediate()) {
 					// Checking that we got the correct point dimension
@@ -142,6 +156,8 @@ void loop()
 						serialCommunication.sendDebugPacket("Invalid point dimension");
 					} else {
 						status = ImmediateMode;
+						sequenceBufferWasFull = false;
+						serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
 					}
 				} else {
 					serialCommunication.sendDebugPacket("Unexpected command");
@@ -149,12 +165,27 @@ void loop()
 				break;
 			case StreamMode:
 				if (serialCommunication.isSequencePoint()) {
-					dfsafafd
+					// If the queue was full, sending a debug packet
+					if (serialCommunication.nextSequencePointToFill() == NULL) {
+						serialCommunication.sendDebugPacket("Sequence point received but buffer full");
+					} else {
+						// Marking the point as complete
+						sequencePlayer.pointFilled();
 
-					mandare buffer full/not full
+						// Checking what to send in response and setting the next object
+						// to fill
+						sequenceBufferWasFull = sequencePlayer.bufferFull();
+						if (sequenceBufferWasFull) {
+							serialCommunication.setNextSequencePointToFill(NULL);
+							serialCommunication.sendBufferFull();
+						} else {
+							serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
+							serialCommunication.sendBufferNotFull();
+						}
+					}
 				} else if (serialCommunication.isStop()) {
 					// Clearing the sequence player buffer and returning idle
-					sequencePlayer.clear();
+					sequencePlayer.clearBuffer();
 					status = IdleState;
 				} else {
 					serialCommunication.sendDebugPacket("Unexpected command");
@@ -162,11 +193,21 @@ void loop()
 				break;
 			case ImmediateMode:
 				if (serialCommunication.isSequencePoint()) {
-					dfsafafd
-					mettere a 0 sia duration che timeToTarget prima di marcare il punto come completo
+					// If the queue was full, sending a debug packet
+					if (serialCommunication.nextSequencePointToFill() == NULL) {
+						serialCommunication.sendDebugPacket("Sequence point received but buffer full");
+					} else {
+						// Setting both sequence point duration and timeToTarget to 0, so that the new
+						// position is immediately reached
+						serialCommunication.nextSequencePointToFill()->duration = 0;
+						serialCommunication.nextSequencePointToFill()->timeToTarget = 0;
+
+						// Marking the point as complete
+						sequencePlayer.pointFilled();
+					}
 				} else if (serialCommunication.isStop()) {
 					// Clearing the sequence player buffer and returning idle
-					sequencePlayer.clear();
+					sequencePlayer.clearBuffer();
 					status = IdleState;
 				} else {
 					serialCommunication.sendDebugPacket("Unexpected command");
@@ -179,7 +220,7 @@ void loop()
 	const unsigned long curBatteryTime = millis();
 	if ((curBatteryTime - lastBatteryTime) > batteryInterval) {
 		// Sending battery charge
-		sdvfdsdsfgsdfg
+		serialCommunication.sendBatteryCharge(117);
 
 		lastBatteryTime = curBatteryTime;
 	}

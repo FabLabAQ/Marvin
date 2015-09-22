@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include "sequenceplayer.h"
+#include <stdlib.h>
 
 SequencePlayer::SequencePlayer(unsigned long stepLength)
 	: m_stepLength(stepLength)
@@ -31,7 +32,7 @@ SequencePlayer::SequencePlayer(unsigned long stepLength)
 
 void SequencePlayer::begin()
 {
-	dfgdsfgdsfg
+// 	dfgdsfgdsfg
 }
 
 SequencePoint* SequencePlayer::pointToFill()
@@ -78,9 +79,9 @@ bool SequencePlayer::step()
 		// Checking if we have to move (if not we simply wait)
 		if (millisStepTime <= m_buffer[m_curPoint].timeToTarget) {
 			// We have not reached the point yet, moving the servos
-			compute the new position for each servo (handle the case timeToTarget is 0)
-
-			move to reach the point
+// 			compute the new position for each servo (handle the case timeToTarget is 0)
+//
+// 			move to reach the point
 		}
 
 		// Incrementing the step time
