@@ -19,57 +19,168 @@
  ******************************************************************************/
 
 #include "serialcommunication.h"
+#include "sequenceplayer.h"
 #include <stdlib.h>
+// // import Wire library to use I²C
+// #include <Wire.h>
+// // import backpack library to use LED backpacks
+// #include "Adafruit_LEDBackpack.h"
+// // import GFX library to draw bitmaps on LED backpacks
+// #include "Adafruit_GFX.h"
 
+// The possible states
+enum States {IdleState, StreamMode, ImmediateMode};
+
+// The current status
+States status = IdleState;
 // The baud rate to use for communication with computer
 const long baudRate = 115200;
 // The object that handles communication
-SerialCommunication serialComm;
-
-// JUST FOR TESTING
-SequencePoint p;
+SerialCommunication serialCommunication;
+// How much each loop should last in microseconds
+const unsigned long loopDuration = 5000;
+// The microseconds of the last loop
 unsigned long lastTime = 0;
+// The object controlling the servos
+SequencePlayer sequencePlayer(loopDuration);
+// Each how many milliseconds we should send the battery charge
+const unsigned long batteryInterval = 1000;
+// The milliseconds we last sent the battery charge
+unsigned long lastBatteryTime = 0;
+
+// // The face object
+// Adafruit_8x8matrix face = Adafruit_8x8matrix();
+
+// // A bitmap for a smile
+// static const uint8_t PROGMEM smile_bmp[] =
+//   { B00000000,
+//     B01100110,
+//     B00000000,
+//     B00100100,
+//     B00000000,
+//     B01000010,
+//     B00111100,
+//     B00000000 };
+
+// /**
+//  * \brief Initializes led for the face
+//  */
+// void initializeFace()
+// {
+// 	// initialize LED backpack over I²C at the given address
+// 	face.begin(0x70);
+//
+// 	// set rotation to match the position on the robot
+// 	face.setRotation(3);
+//
+// 	// set an appropriate brightness (0-15)
+// 	face.setBrightness(7);
+// }
+
+// /**
+//  * \brief Draws a smiling face
+//  */
+// void smile()
+// {
+// 	// clear whatever was left on the display
+// 	face.clear();
+//
+// 	// send bitmap to cover the entire display area
+// 	face.drawBitmap(0, 0, smile_bmp, 8, 8, LED_ON);
+//
+// 	// show image
+// 	face.writeDisplay();
+// }
 
 void setup()
 {
+	// Initializing the object handling serial communication
 	serialComm.begin(baudRate);
 
-	serialComm.setNextSequencePointToFill(&p);
+	// Initializing the object handling servos
+	sequencePlayer.begin();
+
+	// Setting the point to fill. The buffer cannot be full at this stage!
+	serialComm.setNextSequencePointToFill(sequencePlayer.pointToFill());
+
+// 	// initialize Adafruit's LED backpack
+// 	initializeFace();
+// 	// draw a smiling face
+// 	smile();
 }
 
 void loop()
 {
-	char buf[256];
-
-	// Adaptive sleep, so that the loop() function lasts approximately 1000 microseconds
+	// Adaptive sleep, so that the loop() function lasts approximately loopDuration microseconds
 	const unsigned long curTime = micros();
 	const unsigned long timeSpent = curTime - lastTime;
-	const int sleepTime = 998 - timeSpent; // 998 and not 1000 to compensate for all these instructions
-	if (sleepTime > 0) {
-		delayMicroseconds(sleepTime);
+	// Perhaps remove few microsends to compensate for the instructions above
+	if (timeSpent > loopDuration) {
+		delayMicroseconds(loopDuration - timeSpent);
 	}
 	lastTime = micros();
+	const unsigned long totalSleepTime = lastTime - curTime;
 
-	if (serialComm.commandReceived()) {
-		bool sendBufNotFull = false;
-		if (serialComm.isSequencePoint()) {
-// 			sprintf(buf, "%c (dt: %lu) Got POINT: %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u", serialComm.receivedCommand(), timeSpent, p.duration, p.timeToTarget, p.point[0], p.point[1], p.point[2], p.point[3], p.point[4], p.point[5], p.point[6], p.point[7], p.point[8], p.point[9], p.point[10], p.point[11], p.point[12], p.point[13], p.point[14], p.point[15]);
-			sprintf(buf, "%c (dt: %lu) Got POINT", serialComm.receivedCommand(), timeSpent);
+	// Moving servos. We do this here to ensure step is called at constant intervals. We do this
+	// even when idle because in that case we are sure the buffer is empty
+	const bool sequenceEmpty = sequencePlayer.step();
 
-			sendBufNotFull = true;
-		} else if (serialComm.isStartStream()) {
-			sprintf(buf, "%c (dt: %lu) Got STREAM (%i)", serialComm.receivedCommand(), timeSpent, serialComm.pointDimension());
-		} else if (serialComm.isStartImmediate()) {
-			sprintf(buf, "%c (dt: %lu) Got IMMEDIATE (%i)", serialComm.receivedCommand(), timeSpent, serialComm.pointDimension());
-		} else if (serialComm.isStop()) {
-			sprintf(buf, "%c (dt: %lu) Got STOP", serialComm.receivedCommand(), timeSpent);
-		} else {
-			sprintf(buf, "%c (dt: %lu) Unknown command", serialComm.receivedCommand(), timeSpent);
+	// Checking if there are new commands
+	if (serialCommunication.commandReceived()) {
+		switch (status) {
+			case IdleState:
+				if (serialCommunication.isStartStream()) {
+					// Checking that we got the correct point dimension
+					if (serialCommunication.pointDimension() != SequencePoint::dim) {
+						serialCommunication.sendDebugPacket("Invalid point dimension");
+					} else {
+						status = StreamMode;
+					}
+				} else if (serialCommunication.isStartImmediate()) {
+					// Checking that we got the correct point dimension
+					if (serialCommunication.pointDimension() != SequencePoint::dim) {
+						serialCommunication.sendDebugPacket("Invalid point dimension");
+					} else {
+						status = ImmediateMode;
+					}
+				} else {
+					serialCommunication.sendDebugPacket("Unexpected command");
+				}
+				break;
+			case StreamMode:
+				if (serialCommunication.isSequencePoint()) {
+					dfsafafd
+
+					mandare buffer full/not full
+				} else if (serialCommunication.isStop()) {
+					// Clearing the sequence player buffer and returning idle
+					sequencePlayer.clear();
+					status = IdleState;
+				} else {
+					serialCommunication.sendDebugPacket("Unexpected command");
+				}
+				break;
+			case ImmediateMode:
+				if (serialCommunication.isSequencePoint()) {
+					dfsafafd
+					mettere a 0 sia duration che timeToTarget prima di marcare il punto come completo
+				} else if (serialCommunication.isStop()) {
+					// Clearing the sequence player buffer and returning idle
+					sequencePlayer.clear();
+					status = IdleState;
+				} else {
+					serialCommunication.sendDebugPacket("Unexpected command");
+				}
+				break;
 		}
+	}
 
-		serialComm.sendDebugPacket(buf);
-		if (sendBufNotFull) {
-			serialComm.sendBufferNotFull();
-		}
+	// Checking if we have to send the battery level
+	const unsigned long curBatteryTime = millis();
+	if ((curBatteryTime - lastBatteryTime) > batteryInterval) {
+		// Sending battery charge
+		sdvfdsdsfgsdfg
+
+		lastBatteryTime = curBatteryTime;
 	}
 }

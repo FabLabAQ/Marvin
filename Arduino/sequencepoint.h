@@ -18,6 +18,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
+#ifndef SEQUENCEPOINT_H
+#define SEQUENCEPOINT_H
+
 /**
  * \brief A single point of the sequence
  */
@@ -43,3 +46,5 @@ struct SequencePoint
 	 */
 	unsigned int timeToTarget;
 };
+
+#endif
