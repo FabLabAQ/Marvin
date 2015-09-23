@@ -2,6 +2,7 @@
  * SequencerGUI                                                               *
  * Copyright (C) 2015                                                         *
  * Tomassino Ferrauto <t_ferrauto@yahoo.it>                                   *
+ * Luca Anastasio <anastasio.lu@gmail.com>                                    *
  *                                                                            *
  * This program is free software; you can redistribute it and/or modify       *
  * it under the terms of the GNU General Public License as published by       *

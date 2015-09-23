@@ -2,6 +2,7 @@
  * SequencerGUI                                                               *
  * Copyright (C) 2015                                                         *
  * Tomassino Ferrauto <t_ferrauto@yahoo.it>                                   *
+ * Luca Anastasio <anastasio.lu@gmail.com>                                    *
  *                                                                            *
  * This program is free software; you can redistribute it and/or modify       *
  * it under the terms of the GNU General Public License as published by       *
@@ -22,6 +23,7 @@
 #define SEQUENCEPLAYER_H
 
 #include "sequencepoint.h"
+#include "Adafruit_PWMServoDriver.h"
 
 /**
  * \brief The class controlling the servos
@@ -34,7 +36,8 @@
  * externally: here we need to keep the current position to compute the velocity
  * at which servos must move to a new postition. The current position of servos
  * is stored in the buffer but it never cleared. After instantiating this class,
- * always call begin before starting to use the object
+ * always call begin before starting to use the object. We internally use an
+ * Adafruit_PWMServoDriver object to control the servos
  */
 class SequencePlayer
 {
@@ -148,6 +151,11 @@ private:
 	 * \param pos the position to which the servo should be moved
 	 */
 	void moveServo(int servo, unsigned char pos);
+
+	/**
+	 * \brief The driver of motors
+	 */
+	Adafruit_PWMServoDriver m_pwm;
 
 	/**
 	 * \brief The buffer for sequence points

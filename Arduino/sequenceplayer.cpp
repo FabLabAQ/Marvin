@@ -2,6 +2,7 @@
  * SequencerGUI                                                               *
  * Copyright (C) 2015                                                         *
  * Tomassino Ferrauto <t_ferrauto@yahoo.it>                                   *
+ * Luca Anastasio <anastasio.lu@gmail.com>                                    *
  *                                                                            *
  * This program is free software; you can redistribute it and/or modify       *
  * it under the terms of the GNU General Public License as published by       *
@@ -24,7 +25,8 @@
 #include <Arduino.h>
 
 SequencePlayer::SequencePlayer(const unsigned int servoMin[SequencePoint::dim], const unsigned int servoMax[SequencePoint::dim])
-	: m_curPoint(1)
+	: m_pwm()
+	, m_curPoint(1)
 	, m_prevPoint(0)
 	, m_pointToFill(1)
 	, m_stepStartTime(0)
@@ -40,6 +42,10 @@ SequencePlayer::SequencePlayer(const unsigned int servoMin[SequencePoint::dim], 
 void SequencePlayer::begin(const SequencePoint& curPos)
 {
 	memcpy(&(m_buffer[m_prevPoint]), &curPos, sizeof(SequencePoint));
+
+	// Initializing the pwm driver
+	m_pwm.begin();
+	m_pwm.setPWMFreq(200);
 
 	// Moving all servos to their position
 	for (int i = 0; i < SequencePoint::dim; ++i) {
@@ -140,7 +146,8 @@ unsigned char SequencePlayer::currentServoPos(int servo, unsigned long curTime)
 void SequencePlayer::moveServo(int servo, unsigned char pos)
 {
 	// Here we map the position in the PWM range. pos is always a value between 0 and 255
-	const long mappedValue = ((long(pos) * m_servoRange[servo]) / 255) + m_servoMin[servo];
+	const long mappedPos = ((long(pos) * m_servoRange[servo]) / 255) + m_servoMin[servo];
 
-// 	MOVE WITH ADAFRUIT LIBRARY
+	// Moving servo
+	m_pwm.setPWM(servo, 0, mappedPos);
 }

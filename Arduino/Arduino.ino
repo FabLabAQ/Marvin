@@ -2,6 +2,7 @@
  * SequencerGUI                                                               *
  * Copyright (C) 2015                                                         *
  * Tomassino Ferrauto <t_ferrauto@yahoo.it>                                   *
+ * Luca Anastasio <anastasio.lu@gmail.com>                                    *
  *                                                                            *
  * This program is free software; you can redistribute it and/or modify       *
  * it under the terms of the GNU General Public License as published by       *
@@ -18,6 +19,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
+// import Wire library to use I²C (I have to include it here because doing it
+// only in Adafruit_PWMServoDriver.cpp doesn't work...)
+#include <Wire.h>
 #include "serialcommunication.h"
 #include "sequenceplayer.h"
 #include <stdlib.h>
