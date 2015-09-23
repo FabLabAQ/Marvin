@@ -142,7 +142,7 @@ Item {
 		}
 
 		Text {
-			text: "Battery charge: " + ((serialCommunication.batteryCharge < 0) ? "unknown" : (serialCommunication.batteryCharge + "%"))
+			text: "Battery charge: " + ((serialCommunication.batteryCharge < 0) ? "unknown" : (serialCommunication.batteryCharge.toFixed(1) + "%"))
 
 			Layout.fillWidth: true
 		}

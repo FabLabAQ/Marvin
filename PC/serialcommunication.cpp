@@ -512,7 +512,6 @@ void SerialCommunication::sendData(const QByteArray& dataToSend)
 		return;
 	}
 
-#warning REMOVE THIS!!!
 	if (!dataToSend.isEmpty()) {
 		QString strData = QChar(dataToSend[0]);
 		for (int i = 1; i < dataToSend.size(); ++i) {

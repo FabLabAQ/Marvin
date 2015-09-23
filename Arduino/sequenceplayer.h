@@ -29,8 +29,12 @@
  * This class stores sequence points and moves servos. Sequence points are in
  * a ring buffer. To add a sequence point use the pointer returned by the
  * function pointToFill(), then call pointFilled() when the sequence point is
- * valid. To play the sequence call step(). It is important that you call the
- * step() function at intervals of stepLength microseconds (see constructor)
+ * valid. To play the sequence call step(). This class internally uses millis()
+ * to compute the position of servos. Never move servos controlled by this class
+ * externally: here we need to keep the current position to compute the velocity
+ * at which servos must move to a new postition. The current position of servos
+ * is stored in the buffer but it never cleared. After instantiating this class,
+ * always call begin before starting to use the object
  */
 class SequencePlayer
 {
@@ -44,9 +48,12 @@ public:
 	/**
 	 * \brief Constructor
 	 *
-	 * \param stepLength how long does a step last in microseconds
+	 * \param servoMin the vector with the minimum valus of the PWM of
+	 *                 servos
+	 * \param servoMax the vector with the maximum valus of the PWM of
+	 *                 servos
 	 */
-	explicit SequencePlayer(unsigned long stepLength);
+	SequencePlayer(const unsigned int servoMin[SequencePoint::dim], const unsigned int servoMax[SequencePoint::dim]);
 
 	/**
 	 * \brief Initializes servos
@@ -54,8 +61,9 @@ public:
 	 * We can't initialize servos in the constructor because it is called
 	 * too early in the initialization phase. So we must call this function
 	 * inside setup()
+	 * \param curPos the current position of servos
 	 */
-	void begin();
+	void begin(const SequencePoint& curPos);
 
 	/**
 	 * \brief Returns a pointer to the next point in the buffer to fill
@@ -108,7 +116,7 @@ public:
 	 */
 	bool bufferEmpty() const
 	{
-		return m_bufferEmpty;
+		return (m_curPoint == m_pointToFill);
 	}
 
 	/**
@@ -118,14 +126,28 @@ public:
 	 */
 	bool bufferFull() const
 	{
-		return (m_curPoint == m_pointToFill) && (!m_bufferEmpty);
+		return (m_prevPoint == m_pointToFill);
 	}
 
 private:
 	/**
-	 * \brief How long does a step last in microseconds
+	 * \brief Computes the position the servo it should have at the given
+	 *        time
+	 *
+	 * \param servo the index of the servo to move
+	 * \param curTime the current step time. This MUST be lower than the
+	 *                timeToTarget of the current step
+	 * \return the position the servo should have
 	 */
-	const unsigned long m_stepLength;
+	unsigned char currentServoPos(int servo, unsigned long curTime);
+
+	/**
+	 * \brief Moves one servo to specified position
+	 *
+	 * \param servo the index of the servo to move
+	 * \param pos the position to which the servo should be moved
+	 */
+	void moveServo(int servo, unsigned char pos);
 
 	/**
 	 * \brief The buffer for sequence points
@@ -138,20 +160,41 @@ private:
 	int m_curPoint;
 
 	/**
+	 * \brief The index of the previous point in the buffer
+	 */
+	int m_prevPoint;
+
+	/**
 	 * \brief The index of the point to fill in the buffer
 	 */
 	int m_pointToFill;
 
 	/**
-	 * \brief The time elapsed since the sequence point started in
-	 *        microseconds
+	 * \brief The time the sequence point started in milliseconds
+	 *
+	 * This is set using millis()
 	 */
-	unsigned long m_stepTime;
+	unsigned long m_stepStartTime;
 
 	/**
-	 * \brief True if the buffer is empty
+	 * \brief Set to true when starting a new sequence point
+	 *
+	 * This is needed to store the m_stepStartTime
 	 */
-	bool m_bufferEmpty;
+	bool m_startingNewPoint;
+
+	/**
+	 * \brief The minimum value for servos PWM
+	 */
+	unsigned int m_servoMin[SequencePoint::dim];
+
+	/**
+	 * \brief The range of servos PWM
+	 *
+	 * Valid values for PWM will be from m_servoMin to (m_servoMin +
+	 * m_servoRange)
+	 */
+	unsigned int m_servoRange[SequencePoint::dim];
 
 	/**
 	 * \brief Copy constructor is disabled

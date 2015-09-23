@@ -31,18 +31,20 @@
 // The possible states
 enum States {IdleState, StreamMode, ImmediateMode};
 
+// The minimum and maximum PWM value of all servos
+const unsigned int servoMin[SequencePoint::dim] = {1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000};
+const unsigned int servoMax[SequencePoint::dim] = {2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000};
+
 // The current status
 States status = IdleState;
 // The baud rate to use for communication with computer
 const long baudRate = 115200;
 // The object that handles communication
 SerialCommunication serialCommunication;
-// How much each loop should last in microseconds
-const unsigned long loopDuration = 5000;
 // The microseconds of the last loop
 unsigned long lastTime = 0;
 // The object controlling the servos
-SequencePlayer sequencePlayer(loopDuration);
+SequencePlayer sequencePlayer(servoMin, servoMax);
 // Each how many milliseconds we should send the battery charge
 const unsigned long batteryInterval = 1000;
 // The milliseconds we last sent the battery charge
@@ -99,8 +101,29 @@ void setup()
 	// Initializing the object handling serial communication
 	serialCommunication.begin(baudRate);
 
+	// The initial position of servos
+	SequencePoint startPos;
+	startPos.duration = 0;
+	startPos.timeToTarget = 0;
+	startPos.point[0] = 127;
+	startPos.point[1] = 127;
+	startPos.point[2] = 127;
+	startPos.point[3] = 127;
+	startPos.point[4] = 127;
+	startPos.point[5] = 127;
+	startPos.point[6] = 127;
+	startPos.point[7] = 127;
+	startPos.point[8] = 127;
+	startPos.point[9] = 127;
+	startPos.point[10] = 127;
+	startPos.point[11] = 127;
+	startPos.point[12] = 127;
+	startPos.point[13] = 127;
+	startPos.point[14] = 127;
+	startPos.point[15] = 127;
+
 	// Initializing the object handling servos
-	sequencePlayer.begin();
+	sequencePlayer.begin(startPos);
 
 	// Setting the point to fill. The buffer cannot be full at this stage!
 	serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
@@ -113,20 +136,7 @@ void setup()
 
 void loop()
 {
-	// Adaptive sleep, so that the loop() function lasts approximately loopDuration microseconds
-	const unsigned long curTime = micros();
-	const unsigned long timeSpent = curTime - lastTime;
-	// Perhaps remove few microsends to compensate for the instructions above
-	if (timeSpent < loopDuration) {
-		delayMicroseconds(loopDuration - timeSpent);
-	} else {
-		serialCommunication.sendDebugPacket("We are too slow!");
-	}
-	lastTime = micros();
-	const unsigned long totalSleepTime = lastTime - curTime;
-
-	// Moving servos. We do this here to ensure step is called at constant intervals. We do this
-	// even when idle because in that case we are sure the buffer is empty
+	// Moving servos.We do this even when idle because in that case we are sure the buffer is empty
 	sequencePlayer.step();
 
 	// If the buffer was full and it is no longer full, sending a buffer not full package
