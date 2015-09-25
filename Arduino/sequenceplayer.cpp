@@ -135,8 +135,8 @@ unsigned char SequencePlayer::currentServoPos(int servo, unsigned long curTime)
 	if (m_buffer[m_curPoint].timeToTarget == 0) {
 		newPos = m_buffer[m_curPoint].point[servo];
 	} else {
-		const long d = m_buffer[m_curPoint].point[servo] - m_buffer[m_prevPoint].point[servo];
-		const long newP = m_buffer[m_prevPoint].point[servo] + ((d * curTime) / m_buffer[m_curPoint].timeToTarget);
+		const long d = long(m_buffer[m_curPoint].point[servo]) - long(m_buffer[m_prevPoint].point[servo]);
+		const long newP = long(m_buffer[m_prevPoint].point[servo]) + ((d * long(curTime)) / long(m_buffer[m_curPoint].timeToTarget));
 		newPos = (unsigned char) newP;
 	}
 

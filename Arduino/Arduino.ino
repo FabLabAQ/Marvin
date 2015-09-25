@@ -33,16 +33,17 @@
 // #include "Adafruit_GFX.h"
 
 // The possible states
-enum States {IdleState, StreamMode, ImmediateMode};
+enum States {IdleState, StreamMode, StreamModeStopping, ImmediateMode};
 
 // The minimum and maximum PWM value of all servos
-const unsigned int servoMin[SequencePoint::dim] = {1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000};
-const unsigned int servoMax[SequencePoint::dim] = {2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000};
+const unsigned int servoMin[SequencePoint::dim] = {1150, 1800,  500,  800,  900,  550,  800,  550,  920,  500,  750, 1000,  500,  750,  650, 1450};
+const unsigned int servoMax[SequencePoint::dim] = {1770, 1800, 1800, 2200, 1700, 1750, 2050, 1670, 2000, 1700, 2020, 1800, 1800, 1650, 2000, 2200};
+const unsigned int servoMid[SequencePoint::dim] = {1500, 1800, 1000, 1150, 1300, 1400, 1160, 1250, 1300, 1320, 1100, 1420, 1350, 1650, 1750, 1800};
 
 // The current status
 States status = IdleState;
 // The baud rate to use for communication with computer
-const long baudRate = 115200;
+const long baudRate = 57600;
 // The object that handles communication
 SerialCommunication serialCommunication;
 // The microseconds of the last loop
@@ -55,6 +56,8 @@ const unsigned long batteryInterval = 1000;
 unsigned long lastBatteryTime = 0;
 // This is true if the sequence buffer was full
 bool sequenceBufferWasFull = false;
+// Battery pin
+const int batteryPin = 3;
 
 // // The face object
 // Adafruit_8x8matrix face = Adafruit_8x8matrix();
@@ -109,22 +112,10 @@ void setup()
 	SequencePoint startPos;
 	startPos.duration = 0;
 	startPos.timeToTarget = 0;
-	startPos.point[0] = 127;
-	startPos.point[1] = 127;
-	startPos.point[2] = 127;
-	startPos.point[3] = 127;
-	startPos.point[4] = 127;
-	startPos.point[5] = 127;
-	startPos.point[6] = 127;
-	startPos.point[7] = 127;
-	startPos.point[8] = 127;
-	startPos.point[9] = 127;
-	startPos.point[10] = 127;
-	startPos.point[11] = 127;
-	startPos.point[12] = 127;
-	startPos.point[13] = 127;
-	startPos.point[14] = 127;
-	startPos.point[15] = 127;
+	for (int i = 0; i < SequencePoint::dim; ++i) {
+		unsigned long p = (unsigned long)(servoMid[i] - servoMin[i]) * 256 / (unsigned long)(servoMax[i] - servoMin[i]);
+		startPos.point[i] = p;
+	}
 
 	// Initializing the object handling servos
 	sequencePlayer.begin(startPos);
@@ -141,10 +132,15 @@ void setup()
 void loop()
 {
 	// Moving servos.We do this even when idle because in that case we are sure the buffer is empty
-	sequencePlayer.step();
+	bool emptyBuffer = sequencePlayer.step();
 
-	// If the buffer was full and it is no longer full, sending a buffer not full package
-	if ((status == StreamMode) && sequenceBufferWasFull && (!sequencePlayer.bufferFull())) {
+	if ((status == StreamModeStopping) && emptyBuffer) {
+		// We have finally stopped, clearing the sequence player buffer and returning idle
+		sequencePlayer.clearBuffer();
+		status = IdleState;
+		serialCommunication.sendDebugPacket("-=== Stream finished ===-");
+	} else if ((status == StreamMode) && sequenceBufferWasFull && (!sequencePlayer.bufferFull())) {
+		// If the buffer was full and it is no longer full, sending a buffer not full package
 		serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
 		serialCommunication.sendBufferNotFull();
 
@@ -198,12 +194,15 @@ void loop()
 						}
 					}
 				} else if (serialCommunication.isStop()) {
-					// Clearing the sequence player buffer and returning idle
-					sequencePlayer.clearBuffer();
-					status = IdleState;
+					// Setting status to stopping. We still have to play all remaining sequence points
+					status = StreamModeStopping;
 				} else {
 					serialCommunication.sendDebugPacket("Unexpected command");
 				}
+				break;
+			case StreamModeStopping:
+				// We do not expect any packet here
+				serialCommunication.sendDebugPacket("Unexpected command (stopping)");
 				break;
 			case ImmediateMode:
 				if (serialCommunication.isSequencePoint()) {
@@ -218,6 +217,7 @@ void loop()
 
 						// Marking the point as complete
 						sequencePlayer.pointFilled();
+						serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
 					}
 				} else if (serialCommunication.isStop()) {
 					// Clearing the sequence player buffer and returning idle
@@ -233,8 +233,14 @@ void loop()
 	// Checking if we have to send the battery level
 	const unsigned long curBatteryTime = millis();
 	if ((curBatteryTime - lastBatteryTime) > batteryInterval) {
-		// Sending battery charge
-		serialCommunication.sendBatteryCharge(117);
+		// Sending battery charge. 420 = 100% - 300 = 0%
+		int v = (analogRead(batteryPin) - 300) * 256 / (420 - 300);
+		if (v < 0) {
+			v = 0;
+		} else if (v > 255) {
+			v = 255;
+		}
+		serialCommunication.sendBatteryCharge(v);
 
 		lastBatteryTime = curBatteryTime;
 	}

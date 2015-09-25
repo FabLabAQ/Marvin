@@ -23,6 +23,27 @@
 #include <QFile>
 #include <QJsonArray>
 
+namespace {
+	/**
+	 * \brief returns a default-constructed sequence point
+	 *
+	 * \param sequence the sequence that will store the new point
+	 * \return a default-constructed sequence point
+	 */
+	SequencePoint defaultSequencePoint(const Sequence& sequence)
+	{
+		SequencePoint p;
+
+		p.duration = (sequence.max().duration + sequence.min().duration) / 2;
+		p.point.resize(sequence.pointDim());
+		for (unsigned int i = 0; i < sequence.pointDim(); ++i) {
+			p.point[i] = (sequence.max().point[i] + sequence.min().point[i]) / 2.0;
+		}
+
+		return p;
+	}
+}
+
 Sequence::Sequence(unsigned int pointDim, SequencePoint minVals, SequencePoint maxVals, QObject* parent)
 	: QObject(parent)
 	, m_pointDim(pointDim)
@@ -189,7 +210,7 @@ void Sequence::insertAfterCurrent()
 	}
 
 	if (m_curPoint == -1) {
-		m_sequence.append(validatePoint(SequencePoint()));
+		m_sequence.append(validatePoint(defaultSequencePoint(*this)));
 	} else {
 		m_sequence.insert(m_curPoint + 1, validatePoint(m_sequence[m_curPoint]));
 	}
@@ -210,7 +231,7 @@ void Sequence::insertBeforeCurrent()
 	}
 
 	if (m_curPoint == -1) {
-		m_sequence.append(validatePoint(SequencePoint()));
+		m_sequence.append(validatePoint(defaultSequencePoint(*this)));
 
 		m_curPoint = 0;
 		emit curPointChanged();
@@ -235,7 +256,7 @@ void Sequence::append()
 		return;
 	}
 
-	SequencePoint p = (m_curPoint == -1) ? SequencePoint() : m_sequence[m_curPoint];
+	SequencePoint p = (m_curPoint == -1) ? defaultSequencePoint(*this) : m_sequence[m_curPoint];
 	m_sequence.append(validatePoint(p));
 
 	emit numPointsChanged();
