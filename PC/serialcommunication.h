@@ -42,15 +42,18 @@
  * mode it is possible to pause and resume the stream, though the buffering
  * performed by the Arduino board prevents a precise stop. The startStream()
  * function starts the stream modality, which must be terminated using the
- * stop() function. When in immediate mode, this connects to the
- * curPointChanged() signal of the stream, thus sending a new command every time
- * the current point in the sequence changes. The startImmediate() function
- * starts the immediate modality, which terminates when all points have been
- * streamed or when the stop() function is called. In either cases the
- * streamStopped() signal is emitted. When in one modality it is not possible to
- * call a function of the other modality (functions will return false). It is
- * also an error when functions of one modality are called before the modality
- * is started or when the serial port is not open.
+ * stop() function. It is possible to decide whether the sequence should be
+ * played once (i.e. streaming stops as soon as the last point is reached) or
+ * continuously (i.e. the sequnce is restarted from the beginning after the last
+ * point is reached). The startImmediate() function starts the immediate
+ * modality, which terminates when the stop() function is called. When in
+ * immediate mode, this connects to the curPointChanged() signal of the stream,
+ * thus sending a new command every time the current point in the sequence
+ * changes.  In either cases the streamStopped() signal is emitted when points
+ * are no longer streamed. When in one modality it is not possible to call a
+ * function of the other modality (functions will return false). It is also an
+ * error when functions of one modality are called before the modality is
+ * started or when the serial port is not open.
  *
  * The communication protocol between this program and the Arduino board is the
  * following. The packets the PC may send to the hardware are the following
@@ -63,6 +66,7 @@
  * The packes the hardware may send to the PC are the following ones:
  *	- sequence buffer not full
  *	- sequence buffer full
+ *	- sequence finished
  *	- debug packet
  *	- battery charge packet
  *
@@ -76,13 +80,15 @@
  * buffer full" packet, it will send a "sequence buffer not full" packet as soon
  * as the buffer is no longer full (this "sequence buffer not full" packet can
  * be sent at any time, not only in response to a packet from the PC). To
- * terminate sequence execution the PC sends a "stop" packet. The "start
- * immediate mode" packet instructs the hardware to immediately process incoming
- * sequence packets. This means that the "duration" property of sequence points
- * is not respected and that a pose it kept until a new sequence point arrives.
- * In this case the hardware does not send any packet back (there is no buffer).
- * To termiante the immediate mode, the PC sends a "stop" packet. Packets sent
- * before either "start sequence" or "start immediate mode" are discarded.
+ * terminate sequence execution the PC sends a "stop" packet. The hardware then
+ * answers with a "sequence finished" packet as soon as the last point is
+ * reached and kept for its whose duration. The "start immediate mode" packet
+ * instructs the hardware to immediately process incoming sequence packets. This
+ * means that the "duration" property of sequence points is not respected and
+ * that a pose it kept until a new sequence point arrives. In this case the
+ * hardware does not send any packet back (there is no buffer). To termiante the
+ * immediate mode, the PC sends a "stop" packet. Packets sent before either
+ * "start sequence" or "start immediate mode" are discarded.
  *
  * The debug packet is used by the hardware for debugging purpouse. It contains
  * a string of maximum length 255 bytes which is simply displayed (no other
@@ -113,6 +119,9 @@
  * "sequence buffer full"
  * the character 'F' (1 byte)
  *
+ * "sequence finished"
+ * the characted 'E' (1 byte)
+ *
  * "debug packet"
  * the character 'D' (1 byte) - length of message (1 byte) - message (length of
  * message elements)
@@ -126,6 +135,7 @@ class SerialCommunication : public QObject
 	Q_OBJECT
 	Q_PROPERTY(QString serialPortName READ serialPortName WRITE setSerialPortName NOTIFY serialPortNameChanged)
 	Q_PROPERTY(int baudRate READ baudRate WRITE setBaudRate NOTIFY baudRateChanged)
+	Q_PROPERTY(bool oneShotSequence READ oneShotSequence WRITE setOneShotSequence NOTIFY oneShotSequenceChanged)
 	Q_PROPERTY(bool isConnected READ isConnected NOTIFY isConnectedChanged)
 	Q_PROPERTY(bool isStreaming READ isStreaming NOTIFY isStreamingChanged)
 	Q_PROPERTY(bool isStreamMode READ isStreamMode NOTIFY isStreamModeChanged)
@@ -205,6 +215,23 @@ public:
 	 * \param baudRate the new baud rate
 	 */
 	void setBaudRate(int baudRate);
+
+	/**
+	 * \brief Returns whether the sequence is played once or continuously
+	 *
+	 * \return whether the sequence is played once or continuously
+	 */
+	bool oneShotSequence() const
+	{
+		return m_oneShotSequence;
+	}
+
+	/**
+	 * \brief Sets whether the sequence is played once or continuously
+	 *
+	 * \param oneShot whether the sequence is played once or continuously
+	 */
+	void setOneShotSequence(bool oneShot);
 
 	/**
 	 * \brief Opens the serial port
@@ -351,6 +378,11 @@ signals:
 	void baudRateChanged();
 
 	/**
+	 * \brief The signal emitted when the oneShotSequence property changes
+	 */
+	void oneShotSequenceChanged();
+
+	/**
 	 * \brief The signal emitted when the serial port is opened/closed
 	 */
 	void isConnectedChanged();
@@ -451,6 +483,14 @@ private:
 	void processReceivedPackets();
 
 	/**
+	 * \brief The function to call when the sequence is no longer streamed
+	 *
+	 * This is called when either immediate mode stops or the "sequence
+	 * finished" packet is received
+	 */
+	void sequenceStreamEnded();
+
+	/**
 	 * \brief Moves the current point forward
 	 *
 	 * This function moves the current point forward by one. If we reach the
@@ -499,6 +539,13 @@ private:
 	 * \brief The baud rate of the serial port
 	 */
 	int m_baudRate;
+
+	/**
+	 * \brief Whether the sequence is played only once or continuously
+	 *
+	 * If true the sequence is played only once, if false continuously
+	 */
+	bool m_oneShotSequence;
 
 	/**
 	 * \brief The serial communication port

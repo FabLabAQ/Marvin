@@ -116,6 +116,11 @@ void SerialCommunication::sendBufferFull()
 	Serial.write('F');
 }
 
+void SerialCommunication::sendSequenceFinished()
+{
+	Serial.write('E');
+}
+
 void SerialCommunication::sendDebugPacket(const char* msg)
 {
 	const unsigned int msgLen = min(strlen(msg), 255);

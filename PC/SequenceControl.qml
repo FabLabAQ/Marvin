@@ -97,6 +97,16 @@ Item {
 			}
 		}
 
+		CheckBox {
+			text: "Continuous stream"
+			enabled: serialCommunication.isConnected && (!serialCommunication.isImmediateMode)
+			checked: !serialCommunication.oneShotSequence
+
+			Layout.fillWidth: true
+
+			onCheckedChanged: serialCommunication.oneShotSequence = !checked
+		}
+
 		Button {
 			text: serialCommunication.isConnected ? "Disconnect" : "Connect"
 			enabled: !serialCommunication.isStreaming

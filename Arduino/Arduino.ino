@@ -138,7 +138,10 @@ void loop()
 		// We have finally stopped, clearing the sequence player buffer and returning idle
 		sequencePlayer.clearBuffer();
 		status = IdleState;
-		serialCommunication.sendDebugPacket("-=== Stream finished ===-");
+		serialCommunication.sendSequenceFinished();
+
+CAPIRE PERCHÈ A VOLTE NON CHIUDE LA SEQUENZA
+
 	} else if ((status == StreamMode) && sequenceBufferWasFull && (!sequencePlayer.bufferFull())) {
 		// If the buffer was full and it is no longer full, sending a buffer not full package
 		serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());

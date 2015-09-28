@@ -70,6 +70,15 @@ void SerialCommunication::SerialCommunication::setBaudRate(int baudRate)
 	}
 }
 
+void SerialCommunication::setOneShotSequence(bool oneShot)
+{
+	if (oneShot != m_oneShotSequence) {
+		m_oneShotSequence  = oneShot;
+
+		emit oneShotSequenceChanged();
+	}
+}
+
 bool SerialCommunication::openSerial()
 {
 	if (isStreaming()) {
@@ -246,23 +255,11 @@ bool SerialCommunication::stop()
 	// Sending packet to stop streaming
 	sendData(QByteArray("H"));
 
-	// Disconnecting all signals from the sequence to us
-	m_sequence->disconnect(this);
-
-	// Setting the sequence to nullptr
-	m_sequence = nullptr;
-
-	// Emitting the signal telling that we stopped streaming
-	emit isStreamingChanged();
-
-	// Resetting flags
-	m_paused = false;
-	m_hardwareQueueFull = false;
-	setIsStreamMode(false);
-	setIsImmediateMode(false);
-
-	m_incomingData.clear();
-	m_indexToProcess = 0;
+	// If we are in immediate mode, we can end here, otherwise we must wait
+	// for the hardware to tell us that the sequence is finished
+	if (isImmediateMode()) {
+		sequenceStreamEnded();
+	}
 
 	return true;
 }
@@ -441,7 +438,18 @@ void SerialCommunication::processReceivedPackets()
 				// Removing packet from buffer. The next index to process remains the current one
 				m_incomingData.remove(m_indexToProcess, 1);
 			}
-		} else  if (m_incomingData[m_indexToProcess] == 'D') {
+		} else if (m_incomingData[m_indexToProcess] == 'E') {
+			if (m_paused) {
+				// Skipping this packet, we are paused
+				++m_indexToProcess;
+			} else {
+				qDebug() << "RECEIVED SEQUENCE ENDED";
+
+				// Calling the sequenceStreamEnded() function. This will also terminate the
+				// while cycle, because the m_incomingData buffer will be cleared
+				sequenceStreamEnded();
+			}
+		} else if (m_incomingData[m_indexToProcess] == 'D') {
 			// Debug packet, printing and emitting signal if the message is complete
 			if (m_incomingData.size() < (m_indexToProcess + 2)) {
 				partialPacket = true;
@@ -495,13 +503,40 @@ void SerialCommunication::processReceivedPackets()
 	}
 }
 
+void SerialCommunication::sequenceStreamEnded()
+{
+	// Disconnecting all signals from the sequence to us
+	m_sequence->disconnect(this);
+
+	// Setting the sequence to nullptr
+	m_sequence = nullptr;
+
+	// Emitting the signal telling that we stopped streaming
+	emit isStreamingChanged();
+
+	// Resetting flags
+	m_paused = false;
+	m_hardwareQueueFull = false;
+	setIsStreamMode(false);
+	setIsImmediateMode(false);
+
+	m_incomingData.clear();
+	m_indexToProcess = 0;
+}
+
 void SerialCommunication::incrementCurPoint()
 {
 	const int curPoint = m_sequence->curPoint();
 
 	if (curPoint == (m_sequence->numPoints() - 1)) {
-		// We are at the last point, stopping
-		stop();
+		// We are at the last point, checking what to do
+		if (oneShotSequence()) {
+			// Stopping
+			stop();
+		} else {
+			// Restarting from the beginning
+			m_sequence->setCurPoint(0);
+		}
 	} else {
 		m_sequence->setCurPoint(curPoint + 1);
 	}

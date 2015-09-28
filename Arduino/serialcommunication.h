@@ -174,6 +174,11 @@ public:
 	void sendBufferFull();
 
 	/**
+	 * \brief Sends a sequence finished package
+	 */
+	void sendSequenceFinished();
+
+	/**
 	 * \brief Sends a debug packet
 	 *
 	 * \param msg the message to send. This cannot be longer than 255 bytes
