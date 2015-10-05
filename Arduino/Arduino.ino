@@ -25,8 +25,6 @@
 #include "serialcommunication.h"
 #include "sequenceplayer.h"
 #include <stdlib.h>
-// // import Wire library to use I²C
-// #include <Wire.h>
 // // import backpack library to use LED backpacks
 // #include "Adafruit_LEDBackpack.h"
 // // import GFX library to draw bitmaps on LED backpacks
@@ -36,9 +34,9 @@
 enum States {IdleState, StreamMode, StreamModeStopping, ImmediateMode};
 
 // The minimum and maximum PWM value of all servos
-const unsigned int servoMin[SequencePoint::dim] = {1150, 1800,  500,  800,  900,  550,  800,  550,  920,  500,  750, 1000,  500,  750,  650, 1450};
-const unsigned int servoMax[SequencePoint::dim] = {1770, 1800, 1800, 2200, 1700, 1750, 2050, 1670, 2000, 1700, 2020, 1800, 1800, 1650, 2000, 2200};
-const unsigned int servoMid[SequencePoint::dim] = {1500, 1800, 1000, 1150, 1300, 1400, 1160, 1250, 1300, 1320, 1100, 1420, 1350, 1650, 1750, 1800};
+const unsigned int servoMin[SequencePoint::dim] = {1150,  500,  500,  800,  900,  550,  800,  550,  920,  500,  750, 1000,  500,  750,  650, 1450};
+const unsigned int servoMax[SequencePoint::dim] = {1770, 1840, 1800, 2200, 1700, 1750, 2050, 1670, 2000, 1700, 2020, 1800, 1800, 1650, 2000, 2200};
+const unsigned int servoMid[SequencePoint::dim] = {1500, 1840, 1000, 1150, 1300, 1400, 1160, 1250, 1300, 1320, 1100, 1420, 1350, 1650,  650, 1800};
 
 // The current status
 States status = IdleState;
@@ -51,7 +49,7 @@ unsigned long lastTime = 0;
 // The object controlling the servos
 SequencePlayer sequencePlayer(servoMin, servoMax);
 // Each how many milliseconds we should send the battery charge
-const unsigned long batteryInterval = 1000;
+const unsigned long batteryInterval = 500;
 // The milliseconds we last sent the battery charge
 unsigned long lastBatteryTime = 0;
 // This is true if the sequence buffer was full
@@ -61,7 +59,7 @@ const int batteryPin = 3;
 
 // // The face object
 // Adafruit_8x8matrix face = Adafruit_8x8matrix();
-
+//
 // // A bitmap for a smile
 // static const uint8_t PROGMEM smile_bmp[] =
 //   { B00000000,
@@ -72,14 +70,14 @@ const int batteryPin = 3;
 //     B01000010,
 //     B00111100,
 //     B00000000 };
-
+//
 // /**
 //  * \brief Initializes led for the face
 //  */
 // void initializeFace()
 // {
-// 	// initialize LED backpack over I²C at the given address
-// 	face.begin(0x70);
+// 	// initialize LED backpack over I²C at the given address, NOW WITH THE CORRECT ADDRESS!!!
+// 	face.begin(0x71);
 //
 // 	// set rotation to match the position on the robot
 // 	face.setRotation(3);
@@ -87,7 +85,7 @@ const int batteryPin = 3;
 // 	// set an appropriate brightness (0-15)
 // 	face.setBrightness(7);
 // }
-
+//
 // /**
 //  * \brief Draws a smiling face
 //  */
@@ -105,6 +103,11 @@ const int batteryPin = 3;
 
 void setup()
 {
+// 	// initialize Adafruit's LED backpack
+// 	initializeFace();
+// 	// draw a smiling face
+// 	smile();
+ 
 	// Initializing the object handling serial communication
 	serialCommunication.begin(baudRate);
 
@@ -123,10 +126,6 @@ void setup()
 	// Setting the point to fill. The buffer cannot be full at this stage!
 	serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
 
-// 	// initialize Adafruit's LED backpack
-// 	initializeFace();
-// 	// draw a smiling face
-// 	smile();
 }
 
 void loop()
