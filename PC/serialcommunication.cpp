@@ -24,8 +24,9 @@
 
 SerialCommunication::SerialCommunication(QObject* parent)
 	: QObject(parent)
-	, m_serialPortName("/dev/ttyUSB3")
+	, m_serialPortName("/dev/ttyACM0")
 	, m_baudRate(57600)
+	, m_oneShotSequence(true)
 	, m_serialPort()
 	, m_sequence(nullptr)
 	, m_isStreamMode(false)
@@ -36,6 +37,7 @@ SerialCommunication::SerialCommunication(QObject* parent)
 	, m_paused(false)
 	, m_hardwareQueueFull(false)
 	, m_batteryCharge(-1.0)
+	, m_stopping(false)
 {
 	// Connecting signals from the serial port
 	connect(&m_serialPort, &QSerialPort::readyRead, this, &SerialCommunication::handleReadyRead);
@@ -147,6 +149,7 @@ bool SerialCommunication::startStream(Sequence* sequence, bool startFromCurrent)
 	// Resetting the pause flag and setting the m_is*Mode flags
 	m_paused = false;
 	m_hardwareQueueFull = false;
+	m_stopping = false;
 	setIsStreamMode(true);
 	setIsImmediateMode(false);
 
@@ -223,6 +226,7 @@ bool SerialCommunication::startImmediate(Sequence* sequence)
 	m_indexToProcess = 0;
 
 	// Setting the m_is*Mode flags
+	m_stopping = false;
 	setIsStreamMode(false);
 	setIsImmediateMode(true);
 
@@ -251,6 +255,9 @@ bool SerialCommunication::stop()
 		qDebug() << "SerialCommunication error: no stream to stop";
 		return false;
 	}
+
+	// Setting the stopping flag
+	m_stopping = true;
 
 	// Sending packet to stop streaming
 	sendData(QByteArray("H"));
@@ -408,8 +415,8 @@ void SerialCommunication::processReceivedPackets()
 	bool partialPacket = false;
 	while ((m_indexToProcess < m_incomingData.size()) && (!partialPacket)) {
 		if ((m_incomingData[m_indexToProcess] == 'N') && isStreamMode()) {
-			if (m_paused) {
-				// Skipping this packet, we are paused
+			if (m_paused || m_stopping) {
+				// Skipping this packet, we are paused or stopping
 				++m_indexToProcess;
 			} else {
 				qDebug() << "RECEIVED BUFFER NOT FULL";
@@ -426,7 +433,7 @@ void SerialCommunication::processReceivedPackets()
 				m_incomingData.remove(m_indexToProcess, 1);
 			}
 		} else if ((m_incomingData[m_indexToProcess] == 'F') && isStreamMode()) {
-			if (m_paused) {
+			if (m_paused || m_stopping) {
 				// Skipping this packet, we are paused
 				++m_indexToProcess;
 			} else {
@@ -517,6 +524,7 @@ void SerialCommunication::sequenceStreamEnded()
 	// Resetting flags
 	m_paused = false;
 	m_hardwareQueueFull = false;
+	m_stopping = false;
 	setIsStreamMode(false);
 	setIsImmediateMode(false);
 

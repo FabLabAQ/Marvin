@@ -601,6 +601,12 @@ private:
 	 * \brief The current charge level of the battery
 	 */
 	float m_batteryCharge;
+
+	/**
+	 * \brief True if we have sent a stop sequence packet and are waiting
+	 *        for the end of the sequence
+	 */
+	bool m_stopping;
 };
 
 #endif // SERIALCOMMUNICATION_H

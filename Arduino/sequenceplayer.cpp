@@ -24,6 +24,10 @@
 #include <string.h>
 #include <Arduino.h>
 
+// // We use the object defined in main for debugging
+// #include "serialcommunication.h"
+// extern SerialCommunication serialCommunication;
+
 SequencePlayer::SequencePlayer(const unsigned int servoMin[SequencePoint::dim], const unsigned int servoMax[SequencePoint::dim])
 	: m_pwm()
 	, m_curPoint(1)
@@ -113,7 +117,7 @@ bool SequencePlayer::step()
 	// If we get here, the buffer is not empty for sure (the only point in which the buffer
 	// can become empty is when we recursively call self. In that case the check is at the
 	// beginning of the function)
-	return false;
+	return true;
 }
 
 void SequencePlayer::clearBuffer()

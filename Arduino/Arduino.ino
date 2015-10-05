@@ -132,16 +132,13 @@ void setup()
 void loop()
 {
 	// Moving servos.We do this even when idle because in that case we are sure the buffer is empty
-	bool emptyBuffer = sequencePlayer.step();
+	const bool emptyBuffer = !sequencePlayer.step();
 
 	if ((status == StreamModeStopping) && emptyBuffer) {
 		// We have finally stopped, clearing the sequence player buffer and returning idle
 		sequencePlayer.clearBuffer();
 		status = IdleState;
 		serialCommunication.sendSequenceFinished();
-
-CAPIRE PERCHÈ A VOLTE NON CHIUDE LA SEQUENZA
-
 	} else if ((status == StreamMode) && sequenceBufferWasFull && (!sequencePlayer.bufferFull())) {
 		// If the buffer was full and it is no longer full, sending a buffer not full package
 		serialCommunication.setNextSequencePointToFill(sequencePlayer.pointToFill());
@@ -205,7 +202,7 @@ CAPIRE PERCHÈ A VOLTE NON CHIUDE LA SEQUENZA
 				break;
 			case StreamModeStopping:
 				// We do not expect any packet here
-				serialCommunication.sendDebugPacket("Unexpected command (stopping)");
+				serialCommunication.sendDebugPacket("Unexpected command (sequence stopping)");
 				break;
 			case ImmediateMode:
 				if (serialCommunication.isSequencePoint()) {

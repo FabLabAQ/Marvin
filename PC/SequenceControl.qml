@@ -66,9 +66,9 @@ Item {
 
 			onClicked: {
 				if (serialCommunication.isPaused) {
-					serialCommunication.pauseStream();
-				} else {
 					serialCommunication.resumeStream();
+				} else {
+					serialCommunication.pauseStream();
 				}
 			}
 		}
