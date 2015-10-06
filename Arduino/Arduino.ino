@@ -25,10 +25,10 @@
 #include "serialcommunication.h"
 #include "sequenceplayer.h"
 #include <stdlib.h>
-// // import backpack library to use LED backpacks
-// #include "Adafruit_LEDBackpack.h"
-// // import GFX library to draw bitmaps on LED backpacks
-// #include "Adafruit_GFX.h"
+// import backpack library to use LED backpacks
+#include "AdafruitLEDBackpack.h"
+// import GFX library to draw bitmaps on LED backpacks
+#include "AdafruitGFX.h"
 
 // The possible states
 enum States {IdleState, StreamMode, StreamModeStopping, ImmediateMode};
@@ -41,7 +41,7 @@ const unsigned int servoMid[SequencePoint::dim] = {1500, 1840, 1000, 1150, 1300,
 // The current status
 States status = IdleState;
 // The baud rate to use for communication with computer
-const long baudRate = 57600;
+const long baudRate = 115200;
 // The object that handles communication
 SerialCommunication serialCommunication;
 // The microseconds of the last loop
@@ -57,56 +57,56 @@ bool sequenceBufferWasFull = false;
 // Battery pin
 const int batteryPin = 3;
 
-// // The face object
-// Adafruit_8x8matrix face = Adafruit_8x8matrix();
-//
-// // A bitmap for a smile
-// static const uint8_t PROGMEM smile_bmp[] =
-//   { B00000000,
-//     B01100110,
-//     B00000000,
-//     B00100100,
-//     B00000000,
-//     B01000010,
-//     B00111100,
-//     B00000000 };
-//
-// /**
-//  * \brief Initializes led for the face
-//  */
-// void initializeFace()
-// {
-// 	// initialize LED backpack over I²C at the given address, NOW WITH THE CORRECT ADDRESS!!!
-// 	face.begin(0x71);
-//
-// 	// set rotation to match the position on the robot
-// 	face.setRotation(3);
-//
-// 	// set an appropriate brightness (0-15)
-// 	face.setBrightness(7);
-// }
-//
-// /**
-//  * \brief Draws a smiling face
-//  */
-// void smile()
-// {
-// 	// clear whatever was left on the display
-// 	face.clear();
-//
-// 	// send bitmap to cover the entire display area
-// 	face.drawBitmap(0, 0, smile_bmp, 8, 8, LED_ON);
-//
-// 	// show image
-// 	face.writeDisplay();
-// }
+ // The face object
+ Adafruit_8x8matrix face = Adafruit_8x8matrix();
+
+ // A bitmap for a smile
+ static const uint8_t PROGMEM smile_bmp[] =
+   { B00000000,
+     B01100110,
+     B00000000,
+     B00100100,
+     B00000000,
+     B01000010,
+     B00111100,
+     B00000000 };
+
+ /**
+  * \brief Initializes led for the face
+  */
+ void initializeFace()
+ {
+ 	// initialize LED backpack over I²C at the given address, NOW WITH THE CORRECT ADDRESS!!!
+ 	face.begin(0x71);
+
+ 	// set rotation to match the position on the robot
+ 	face.setRotation(3);
+
+ 	// set an appropriate brightness (0-15)
+ 	face.setBrightness(7);
+ }
+
+ /**
+  * \brief Draws a smiling face
+  */
+ void smile()
+ {
+ 	// clear whatever was left on the display
+ 	face.clear();
+
+ 	// send bitmap to cover the entire display area
+ 	face.drawBitmap(0, 0, smile_bmp, 8, 8, LED_ON);
+
+ 	// show image
+ 	face.writeDisplay();
+ }
 
 void setup()
 {
-// 	// initialize Adafruit's LED backpack
-// 	initializeFace();
-// 	// draw a smiling face
-// 	smile();
+ 	// initialize Adafruit's LED backpack
+ 	initializeFace();
+ 	// draw a smiling face
+ 	smile();
  
 	// Initializing the object handling serial communication
 	serialCommunication.begin(baudRate);

@@ -23,7 +23,7 @@
 #define SEQUENCEPLAYER_H
 
 #include "sequencepoint.h"
-#include "Adafruit_PWMServoDriver.h"
+#include "AdafruitPWMServoDriver.h"
 
 /**
  * \brief The class controlling the servos

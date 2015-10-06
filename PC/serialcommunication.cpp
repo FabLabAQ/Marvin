@@ -24,8 +24,8 @@
 
 SerialCommunication::SerialCommunication(QObject* parent)
 	: QObject(parent)
-	, m_serialPortName("/dev/ttyUSB3")
-	, m_baudRate(57600)
+    , m_serialPortName("/dev/ttyUSB4")
+    , m_baudRate(115200)
 	, m_oneShotSequence(true)
 	, m_serialPort()
 	, m_sequence(nullptr)
