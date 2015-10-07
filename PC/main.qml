@@ -37,8 +37,8 @@ import QtQuick.Layouts 1.1
 ApplicationWindow {
 	id: mainWindow
 	title: qsTr("Sequencer GUI")
-    width: 730
-    height: 920
+	width: 730
+	height: 920
 	visible: true
 
 	// This component keeps som internal variables
