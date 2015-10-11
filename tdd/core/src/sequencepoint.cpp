@@ -22,6 +22,13 @@
 #include "sequencepoint.h"
 #include <QJsonArray>
 
+SequencePoint::SequencePoint()
+	: point()
+	, duration(0)
+	, timeToTarget(0)
+{
+}
+
 SequencePoint::SequencePoint(QVector<double> p, int d, int t)
 	: point(p)
 	, duration(d)
@@ -90,4 +97,10 @@ bool SequencePoint::operator==(const SequencePoint& other) const
 	return (other.duration == duration) &&
 	       (other.timeToTarget == timeToTarget) &&
 	       (other.point == point);
+}
+
+bool SequencePoint::operator!=(const SequencePoint& other) const
+{
+	// We check point last because it is the most expensive check
+	return !(*this == other);
 }

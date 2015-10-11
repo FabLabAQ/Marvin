@@ -27,6 +27,6 @@ find_package(Qt5Test)
 find_package(Qt5QuickTest)
 
 # Adding all subdirectories
-add_subdirectory(test)
 add_subdirectory(core)
 add_subdirectory(main)
+add_subdirectory(test)

@@ -28,15 +28,13 @@
 
 /**
  * \brief A single point in a sequence
- *
- * This structure models a single point in a sequence
  */
 struct SequencePoint
 {
 	/**
 	 * \brief Constructor
 	 */
-	SequencePoint() = default;
+	SequencePoint();
 
 	/**
 	 * \brief Constructor
@@ -69,6 +67,14 @@ struct SequencePoint
 	 * \return true if the two points are equal
 	 */
 	bool operator==(const SequencePoint& other) const;
+
+	/**
+	 * \brief Returns true if the two points are different
+	 *
+	 * \param other the other point to check
+	 * \return true if the two points are different
+	 */
+	bool operator!=(const SequencePoint& other) const;
 
 	/**
 	 * \brief The point

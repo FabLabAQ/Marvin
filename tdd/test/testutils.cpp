@@ -33,7 +33,7 @@ class TestUtils : public QObject
 
 private slots:
 	/**
-	 * \brief Tests that make_unique works
+	 * \brief Tests that make_unique exists and works
 	 */
 	void makeUnique()
 	{
