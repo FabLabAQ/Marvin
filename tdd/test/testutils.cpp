@@ -19,11 +19,29 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include <QApplication>
+#include <QtTest/QtTest>
+#include "utils.h"
 
-int main(int argc, char *argv[])
+/**
+ * \brief The class to perform unit tests
+ *
+ * Each private slot is a test
+ */
+class TestUtils : public QObject
 {
-	QApplication app(argc, argv);
+	Q_OBJECT
 
-	return app.exec();
-}
+private slots:
+	/**
+	 * \brief Tests that make_unique works
+	 */
+	void makeUnique()
+	{
+		class Dummy {};
+
+		std::unique_ptr<Dummy> d = std::make_unique<Dummy>();
+	}
+};
+
+QTEST_MAIN(TestUtils)
+#include "testutils.moc"

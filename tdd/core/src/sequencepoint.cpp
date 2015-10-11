@@ -19,11 +19,75 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include <QApplication>
+#include "sequencepoint.h"
+#include <QJsonArray>
 
-int main(int argc, char *argv[])
+SequencePoint::SequencePoint(QVector<double> p, int d, int t)
+	: point(p)
+	, duration(d)
+	, timeToTarget(t)
 {
-	QApplication app(argc, argv);
+}
 
-	return app.exec();
+bool SequencePoint::fromJson(const QJsonObject& json)
+{
+	point.clear();
+	duration = -1;
+	timeToTarget = -1;
+
+	// Reading the three keys: point...
+	QJsonValue p = json["point"];
+	if (!p.isArray()) {
+		return false;
+	}
+	for (auto v: p.toArray()) {
+		if (!v.isDouble()) {
+			return false;
+		}
+		point.append(v.toDouble());
+	}
+
+	// ... duration...
+	QJsonValue d = json["duration"];
+	if (!d.isDouble()) {
+		return false;
+	}
+	duration = static_cast<int>(d.toDouble());
+
+	// ... and timeToTarget.
+	QJsonValue t = json["timeToTarget"];
+	if (!t.isDouble()) {
+		return false;
+	}
+	timeToTarget = static_cast<int>(t.toDouble());
+
+	return true;
+}
+
+QJsonObject SequencePoint::toJson() const
+{
+	QJsonObject o;
+
+	// Adding the three keys: point...
+	QJsonArray p;
+	for (auto c: point) {
+		p.append(c);
+	}
+	o.insert("point", p);
+
+	// ... duration...
+	o.insert("duration", duration);
+
+	// and timeToTarget
+	o.insert("timeToTarget", timeToTarget);
+
+	return o;
+}
+
+bool SequencePoint::operator==(const SequencePoint& other) const
+{
+	// We check point last because it is the most expensive check
+	return (other.duration == duration) &&
+	       (other.timeToTarget == timeToTarget) &&
+	       (other.point == point);
 }

@@ -2,15 +2,21 @@
 # subprojects and includes scripts in subdirectories
 
 # The minimum required version of CMake
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.1)
 
 # The name of the project
 project(SequencerGUI)
+
+# Enabling testing
+enable_testing()
 
 # Adding the current directory to the include path
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Instruct CMake to run moc automatically when needed.
 set(CMAKE_AUTOMOC ON)
+# Setting the c++ standard version to C++11 for all targets (but C++14 would
+# have been better...)
+set(CMAKE_CXX_STANDARD 11)
 
 # Adding QT. We do it here because it is needed everywhere
 find_package(Qt5Qml)

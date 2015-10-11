@@ -19,11 +19,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include <QApplication>
+#include <QtTest/QtTest>
+#include "sequencepoint.h"
 
-int main(int argc, char *argv[])
+/**
+ * \brief The class to perform unit tests
+ *
+ * Each private slot is a test
+ */
+class TestSequencePoint : public QObject
 {
-	QApplication app(argc, argv);
+	Q_OBJECT
 
-	return app.exec();
-}
+private slots:
+	/**
+	 * \brief Dummy TRANSFORM INTO SOMETHING USEFUL
+	 */
+	void dummy()
+	{
+	}
+};
+
+QTEST_MAIN(TestSequencePoint)
+#include "testsequencepoint.moc"

@@ -19,11 +19,75 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include <QApplication>
+#ifndef SEQUENCEPOINT_H
+#define SEQUENCEPOINT_H
 
-int main(int argc, char *argv[])
+#include <QVector>
+#include <QJsonObject>
+#include "utils.h"
+
+/**
+ * \brief A single point in a sequence
+ *
+ * This structure models a single point in a sequence
+ */
+struct SequencePoint
 {
-	QApplication app(argc, argv);
+	/**
+	 * \brief Constructor
+	 */
+	SequencePoint() = default;
 
-	return app.exec();
-}
+	/**
+	 * \brief Constructor
+	 *
+	 * \param p the point
+	 * \param d the duration in milliseconds
+	 * \param t the time to reach this point in milliseconds
+	 */
+	SequencePoint(QVector<double> p, int d, int t);
+
+	/**
+	 * \brief Initializes this object from its JSON representation
+	 *
+	 * \param json the JSON object to read
+	 * \return false in case of error
+	 */
+	bool fromJson(const QJsonObject& json);
+
+	/**
+	 * \brief Returns the JSON representation of this object
+	 *
+	 * \return The JSON representation of this object
+	 */
+	QJsonObject toJson() const;
+
+	/**
+	 * \brief Returns true if the two points are equal
+	 *
+	 * \param other the other point to check
+	 * \return true if the two points are equal
+	 */
+	bool operator==(const SequencePoint& other) const;
+
+	/**
+	 * \brief The point
+	 */
+	QVector<double> point;
+
+	/**
+	 * \brief For how long the step should last in milliseconds
+	 *
+	 * The point should not be changed for this amount of milliseconds
+	 */
+	int duration;
+
+	/**
+	 * \brief The time spent to reach this point from the previous position
+	 *        in milliseconds
+	 */
+	int timeToTarget;
+};
+
+#endif // SEQUENCEPOINT_H
+
