@@ -28,9 +28,23 @@
 
 /**
  * \brief A single point in a sequence
+ *
+ * pointDimT is the dimensionality of points. Invalid points have negative
+ * duration or timeToTarget
  */
+template <std::size_t PointDimT>
 struct SequencePoint
 {
+	/**
+	 * \brief The dimensionality of points
+	 */
+	static constexpr auto pointDim = PointDimT;
+
+	/**
+	 * \brief The array type modelling a point
+	 */
+	using Array = std::array<double, pointDim>;
+
 	/**
 	 * \brief Constructor
 	 */
@@ -43,15 +57,15 @@ struct SequencePoint
 	 * \param d the duration in milliseconds
 	 * \param t the time to reach this point in milliseconds
 	 */
-	SequencePoint(QVector<double> p, int d, int t);
+	SequencePoint(Array p, int d, int t);
 
 	/**
-	 * \brief Initializes this object from its JSON representation
+	 * \brief Creates a sequence point from a JSON representation
 	 *
 	 * \param json the JSON object to read
-	 * \return false in case of error
+	 * \return the new sequence point, which is invalid in case of errors
 	 */
-	bool fromJson(const QJsonObject& json);
+	static SequencePoint fromJson(const QJsonObject& json);
 
 	/**
 	 * \brief Returns the JSON representation of this object
@@ -77,14 +91,24 @@ struct SequencePoint
 	bool operator!=(const SequencePoint& other) const;
 
 	/**
+	 * \brief Returns true if the point is valid
+	 *
+	 * \return true if the point is valid
+	 */
+	bool isValid() const
+	{
+		return (duration >= 0) && (timeToTarget >= 0);
+	}
+
+	/**
 	 * \brief The point
 	 */
-	QVector<double> point;
+	Array point;
 
 	/**
 	 * \brief For how long the step should last in milliseconds
 	 *
-	 * The point should not be changed for this amount of milliseconds
+	 * The position should not be changed for this amount of milliseconds
 	 */
 	int duration;
 
@@ -94,6 +118,11 @@ struct SequencePoint
 	 */
 	int timeToTarget;
 };
+
+// Expoting explicitly instantiated classes
+extern template class SequencePoint<2>;
+extern template class SequencePoint<3>;
+extern template class SequencePoint<7>;
 
 #endif // SEQUENCEPOINT_H
 

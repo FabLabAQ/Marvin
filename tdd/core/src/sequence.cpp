@@ -19,33 +19,33 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include <QtTest/QtTest>
-#include "utils.h"
+#include "sequence.h"
 
-// NOTES AND TODOS
-//
-//
-
-/**
- * \brief The class to perform unit tests
- *
- * Each private slot is a test
- */
-class TestUtils : public QObject
+template <std::size_t PointDimT>
+Sequence<PointDimT>::Sequence()
+	: m_sequence()
 {
-	Q_OBJECT
+}
 
-private slots:
-	/**
-	 * \brief Tests that make_unique exists and works
-	 */
-	void makeUnique()
-	{
-		class Dummy {};
+template <std::size_t PointDimT>
+Sequence<PointDimT>::Sequence(const std::initializer_list<Point>& l)
+	: m_sequence(l)
+{
+}
 
-		std::unique_ptr<Dummy> d = std::make_unique<Dummy>();
-	}
-};
+template <std::size_t PointDimT>
+void Sequence<PointDimT>::append(const Point& p)
+{
+	m_sequence.append(p);
+}
 
-QTEST_MAIN(TestUtils)
-#include "testutils.moc"
+template <std::size_t PointDimT>
+void Sequence<PointDimT>::remove(int i)
+{
+	m_sequence.remove(i);
+}
+
+// Explicit instantiation of some templates
+template class Sequence<2>;
+template class Sequence<3>;
+template class Sequence<7>;

@@ -21,6 +21,11 @@
 
 #include <QtTest/QtTest>
 #include "sequencepoint.h"
+#include "tutils.h"
+
+// NOTES AND TODOS
+//
+//
 
 /**
  * \brief The class to perform unit tests
@@ -32,104 +37,103 @@ class TestSequencePoint : public QObject
 	Q_OBJECT
 
 private slots:
-	/**
-	 * \brief Check default point construction
-	 */
 	void defaultPointConstruction()
 	{
-		SequencePoint p;
+		const SequencePoint<7> p;
 
-		QCOMPARE(p.point.size(), 0);
+		QCOMPARE(p.point.size(), static_cast<decltype(p.point.size())>(7));
 		QCOMPARE(p.duration, 0);
 		QCOMPARE(p.timeToTarget, 0);
 	}
 
-	/**
-	 * \brief Check point construction
-	 */
 	void pointConstruction()
 	{
-		const QVector<double> p = QVector<double>() << 14.3 << 17.13 << 2234;
+		const auto p = tutils::generateArray<3>();
 		const int d = 3424;
 		const int t = 13443;
-		SequencePoint point(p, d, t);
+		SequencePoint<3> point(p, d, t);
 
 		QCOMPARE(point.point, p);
 		QCOMPARE(point.duration, d);
 		QCOMPARE(point.timeToTarget, t);
 	}
 
-	/**
-	 * \brief Check equality works
-	 */
 	void pointEquality()
 	{
-		const QVector<double> p = QVector<double>() << 17.2 << 13.17 << 989.4;
-		const int d = 745;
-		const int t = 9934;
-		SequencePoint point1(p, d, t);
-		SequencePoint point2(p, d, t);
+		const auto point1 = tutils::generatePoint<3>();
+		const auto point2 = point1;
 
 		QCOMPARE(point1, point2);
 	}
 
-	/**
-	 * \brief Check dis-equality works
-	 */
 	void pointDisequality()
 	{
-		const QVector<double> pa = QVector<double>() << 17.2 << 13.17 << 989.4;
-		const QVector<double> pb = QVector<double>() << 2.443 << 21.9 << 7;
-		const int da = 745;
-		const int db = 997;
-		const int ta = 9934;
-		const int tb = 7783;
-		SequencePoint point1(pa, da, ta);
-		SequencePoint point2(pa, db, tb);
+		const auto point1 = tutils::generatePoint<3>(0);
+		const auto point2 = tutils::generatePoint<3>(1);
 
 		QVERIFY(point1 != point2);
 	}
 
-	/**
-	 * \brief Check conversion to JSON
-	 */
 	void toJson()
 	{
-		const QVector<double> p = QVector<double>() << 17.2 << 989.4;
+		const typename SequencePoint<2>::Array p = {17.2, 989.4};
 		const int d = 745;
 		const int t = 9934;
-		SequencePoint point(p, d, t);
+		const SequencePoint<2> point(p, d, t);
 		QJsonObject pointJsonObject = point.toJson();
 		QJsonObject txtJsonObject = QJsonDocument::fromJson("{\"duration\":745, \"point\":[17.2,989.4], \"timeToTarget\":9934}").object();
 
 		QCOMPARE(pointJsonObject, txtJsonObject);
 	}
 
-	/**
-	 * \brief Check conversion from JSON is valid
-	 */
 	void fromJsonValid()
 	{
-		SequencePoint point;
 		QJsonObject txtJsonObject = QJsonDocument::fromJson("{\"duration\":745, \"point\":[17.2,989.4], \"timeToTarget\":9934}").object();
 
-		QVERIFY(point.fromJson(txtJsonObject));
+		QVERIFY((SequencePoint<2>::fromJson(txtJsonObject)).isValid());
 	}
 
-	/**
-	 * \brief Check conversion from JSON
-	 */
 	void fromJson()
 	{
-		const QVector<double> p = QVector<double>() << 17.2 << 989.4;
-		const int d = 745;
-		const int t = 9934;
-		SequencePoint point(p, d, t);
-		SequencePoint pointFromJson;
+		const auto point = tutils::generatePoint<2>();
 		QJsonObject jsonObject = point.toJson();
-		pointFromJson.fromJson(jsonObject);
+		auto pointFromJson = SequencePoint<2>::fromJson(jsonObject);
 
 		QCOMPARE(point, pointFromJson);
+	}
+
+	void fromInvalidJson()
+	{
+		QJsonObject txtJsonObject1 = QJsonDocument::fromJson("{\"duration\":-745, \"point\":[17.2,989.4], \"timeToTarget\":9934}").object();
+		QJsonObject txtJsonObject2 = QJsonDocument::fromJson("{\"duration\":745, \"point\":\"ciao\", \"timeToTarget\":9934}").object();
+		QJsonObject txtJsonObject3 = QJsonDocument::fromJson("{\"duration\":745, \"point\":[17.2,989.4]}").object();
+		QJsonObject txtJsonObject4 = QJsonDocument::fromJson("{ALL INVALID").object();
+
+		QVERIFY(!(SequencePoint<2>::fromJson(txtJsonObject1)).isValid());
+		QVERIFY(!(SequencePoint<2>::fromJson(txtJsonObject2)).isValid());
+		QVERIFY(!(SequencePoint<2>::fromJson(txtJsonObject3)).isValid());
+		QVERIFY(!(SequencePoint<2>::fromJson(txtJsonObject4)).isValid());
+	}
+
+	void validAndInvalidPoints()
+	{
+		SequencePoint<7> p1;
+		p1.duration = 10;
+		p1.timeToTarget = 20;
+		SequencePoint<7> p2;
+		p2.duration = -10;
+		p2.timeToTarget = 20;
+		SequencePoint<7> p3;
+		p3.duration = 10;
+		p3.timeToTarget = -20;
+		SequencePoint<7> p4;
+		p4.duration = -10;
+		p4.timeToTarget = -20;
+
+		QVERIFY(p1.isValid());
+		QVERIFY(!p2.isValid());
+		QVERIFY(!p3.isValid());
+		QVERIFY(!p4.isValid());
 	}
 };
 

@@ -22,56 +22,65 @@
 #include "sequencepoint.h"
 #include <QJsonArray>
 
-SequencePoint::SequencePoint()
+template <std::size_t PointDimT>
+SequencePoint<PointDimT>::SequencePoint()
 	: point()
 	, duration(0)
 	, timeToTarget(0)
 {
 }
 
-SequencePoint::SequencePoint(QVector<double> p, int d, int t)
+template <std::size_t PointDimT>
+SequencePoint<PointDimT>::SequencePoint(Array p, int d, int t)
 	: point(p)
 	, duration(d)
 	, timeToTarget(t)
 {
 }
 
-bool SequencePoint::fromJson(const QJsonObject& json)
+template <std::size_t PointDimT>
+SequencePoint<PointDimT> SequencePoint<PointDimT>::fromJson(const QJsonObject& json)
 {
-	point.clear();
-	duration = -1;
-	timeToTarget = -1;
+	// Marking the point as invalid
+	SequencePoint seqPoint;
+	seqPoint.duration = -1;
+	seqPoint.timeToTarget = -1;
 
 	// Reading the three keys: point...
 	QJsonValue p = json["point"];
 	if (!p.isArray()) {
-		return false;
+		return seqPoint;
 	}
-	for (auto v: p.toArray()) {
-		if (!v.isDouble()) {
-			return false;
+	auto jsonArray = p.toArray();
+	if (jsonArray.count() != pointDim) {
+		return seqPoint;
+	}
+	for (int i = 0; i < jsonArray.count(); ++i) {
+		if (!jsonArray[i].isDouble()) {
+			return seqPoint;
 		}
-		point.append(v.toDouble());
+		seqPoint.point[i] = jsonArray[i].toDouble();
 	}
 
 	// ... duration...
 	QJsonValue d = json["duration"];
 	if (!d.isDouble()) {
-		return false;
+		return seqPoint;
 	}
-	duration = static_cast<int>(d.toDouble());
+	seqPoint.duration = static_cast<int>(d.toDouble());
 
 	// ... and timeToTarget.
 	QJsonValue t = json["timeToTarget"];
 	if (!t.isDouble()) {
-		return false;
+		return seqPoint;
 	}
-	timeToTarget = static_cast<int>(t.toDouble());
+	seqPoint.timeToTarget = static_cast<int>(t.toDouble());
 
-	return true;
+	return seqPoint;
 }
 
-QJsonObject SequencePoint::toJson() const
+template <std::size_t PointDimT>
+QJsonObject SequencePoint<PointDimT>::toJson() const
 {
 	QJsonObject o;
 
@@ -91,7 +100,8 @@ QJsonObject SequencePoint::toJson() const
 	return o;
 }
 
-bool SequencePoint::operator==(const SequencePoint& other) const
+template <std::size_t PointDimT>
+bool SequencePoint<PointDimT>::operator==(const SequencePoint& other) const
 {
 	// We check point last because it is the most expensive check
 	return (other.duration == duration) &&
@@ -99,8 +109,14 @@ bool SequencePoint::operator==(const SequencePoint& other) const
 	       (other.point == point);
 }
 
-bool SequencePoint::operator!=(const SequencePoint& other) const
+template <std::size_t PointDimT>
+bool SequencePoint<PointDimT>::operator!=(const SequencePoint& other) const
 {
 	// We check point last because it is the most expensive check
 	return !(*this == other);
 }
+
+// Explicit instantiation of some templates
+template class SequencePoint<2>;
+template class SequencePoint<3>;
+template class SequencePoint<7>;

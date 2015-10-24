@@ -19,33 +19,88 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  ******************************************************************************/
 
-#include <QtTest/QtTest>
-#include "utils.h"
+#ifndef SEQUENCE_H
+#define SEQUENCE_H
 
-// NOTES AND TODOS
-//
-//
+#include "sequencepoint.h"
+#include <initializer_list>
 
 /**
- * \brief The class to perform unit tests
+ * \brief The a list of SequencePoints
  *
- * Each private slot is a test
+ * If the point dimensionality is 0, the sequence is invalid
  */
-class TestUtils : public QObject
+template <std::size_t PointDimT>
+class Sequence
 {
-	Q_OBJECT
-
-private slots:
+public:
 	/**
-	 * \brief Tests that make_unique exists and works
+	 * \brief The dimension of points
 	 */
-	void makeUnique()
-	{
-		class Dummy {};
+	static constexpr auto pointDim = PointDimT;
 
-		std::unique_ptr<Dummy> d = std::make_unique<Dummy>();
+	/**
+	 * \brief The type of a point
+	 */
+	using Point = SequencePoint<pointDim>;
+
+public:
+	/**
+	 * \brief Constructor. Builds an empty sequence
+	 */
+	Sequence();
+
+	/**
+	 * \brief Builds a list from an initializer list
+	 *
+	 * \param l the list from which we are initialized
+	 */
+	Sequence(const std::initializer_list<Point>& l);
+
+	/**
+	 * \brief Returns the number of points
+	 *
+	 * \return the number of points
+	 */
+	std::size_t size() const
+	{
+		return m_sequence.size();
 	}
+
+	/**
+	 * \brief Appends a point to the sequence
+	 *
+	 * \param p the point to append
+	 */
+	void append(const Point& p);
+
+	/**
+	 * \brief Returns the i-th point (const version)
+	 *
+	 * \param i the index of the point to return
+	 */
+	const Point& operator[](int i) const
+	{
+		return m_sequence[i];
+	}
+
+	/**
+	 * \brief Removes the point at position i
+	 *
+	 * \param i the position of the point to remove
+	 */
+	void remove(int i);
+
+private:
+	/**
+	 * \brief The sequence of points
+	 */
+	QVector<Point> m_sequence;
 };
 
-QTEST_MAIN(TestUtils)
-#include "testutils.moc"
+// Expoting explicitly instantiated classes
+extern template class SequencePoint<2>;
+extern template class SequencePoint<3>;
+extern template class SequencePoint<7>;
+
+#endif // SEQUENCE_H

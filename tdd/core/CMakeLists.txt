@@ -1,9 +1,11 @@
 # Compiles the static library making up the core of the application
 
 set(CORE_HEADERS
+	include/sequence.h
 	include/sequencepoint.h
 	include/utils.h)
 set(CORE_SOURCES
+	src/sequence.cpp
 	src/sequencepoint.cpp)
 
 # Creating the core library
