@@ -8,4 +8,4 @@ Marvin is a small, low cost, 16 degrees of freedom humanoid (sometimes paranoid)
 
 Credits:
 <br>Hardware: @luca-anastasio
-<br>Firmware and software: @tomassino
+<br>Firmware and software: @Tomassino
